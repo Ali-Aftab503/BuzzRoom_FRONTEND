@@ -8,72 +8,28 @@ require('dotenv').config();
 const app = express();
 const server = http.createServer(app);
 
-// CORS Configuration - CRITICAL: Must be before routes
+// CORS Configuration
 app.use(cors({
-  origin: function(origin, callback) {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
-    if (!origin) return callback(null, true);
-    
-    const allowedOrigins = [
-      'http://localhost:5173',
-      'http://localhost:5000',
-      'https://buzz-room-frontend.vercel.app',
-      process.env.CLIENT_URL,
-      /https:\/\/.*\.vercel\.app$/ // Regex to match all Vercel deployments
-    ];
-    
-    // Check if origin is allowed
-    const isAllowed = allowedOrigins.some(allowed => {
-      if (!allowed) return false;
-      if (allowed instanceof RegExp) {
-        return allowed.test(origin);
-      }
-      return allowed === origin;
-    });
-    
-    if (isAllowed) {
-      callback(null, true);
-    } else {
-      console.log('❌ CORS blocked origin:', origin);
-      callback(null, true); // Still allow for now (remove in production)
-    }
-  },
+  origin: [
+    'http://localhost:5173',
+    'https://buzz-room-frontend.vercel.app',
+    process.env.CLIENT_URL
+  ].filter(Boolean),
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 600 // 10 minutes
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Handle preflight requests
-app.options('*', cors());
-
-// Socket.io with CORS
+// Socket.io CORS
 const io = socketIo(server, {
   cors: {
-    origin: function(origin, callback) {
-      if (!origin) return callback(null, true);
-      
-      const allowedOrigins = [
-        'http://localhost:5173',
-        'https://buzz-room-frontend.vercel.app',
-        process.env.CLIENT_URL,
-        /https:\/\/.*\.vercel\.app$/
-      ];
-      
-      const isAllowed = allowedOrigins.some(allowed => {
-        if (!allowed) return false;
-        if (allowed instanceof RegExp) {
-          return allowed.test(origin);
-        }
-        return allowed === origin;
-      });
-      
-      callback(null, isAllowed);
-    },
+    origin: [
+      'http://localhost:5173',
+      'https://buzz-room-frontend.vercel.app',
+      process.env.CLIENT_URL
+    ].filter(Boolean),
     methods: ["GET", "POST"],
-    credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization"]
+    credentials: true
   }
 });
 
@@ -84,7 +40,10 @@ app.use(express.urlencoded({ extended: true }));
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)
 .then(() => console.log('✅ MongoDB connected successfully'))
-.catch((err) => console.error('❌ MongoDB connection error:', err));
+.catch((err) => {
+  console.error('❌ MongoDB connection error:', err);
+  process.exit(1);
+});
 
 // Import Routes
 const authRoutes = require('./routes/auth');
@@ -103,10 +62,10 @@ app.use('/api/direct-messages', directMessagesRoutes);
 app.use('/api/settings', settingsRoutes);
 
 // Socket.io Logic
-const users = {}; // { userId: socketId }
-const rooms = {}; // { roomId: { userId: { socketId, username, online } } }
-const userRooms = {}; // { userId: Set([roomId1, roomId2]) }
-const videoCalls = {}; // { callId: { caller, receiver, roomId, type } }
+const users = {};
+const rooms = {};
+const userRooms = {};
+const videoCalls = {};
 
 io.on('connection', (socket) => {
   console.log('🔌 New client connected:', socket.id);
@@ -209,7 +168,6 @@ io.on('connection', (socket) => {
     socket.to(roomId).emit('user-stop-typing');
   });
 
-  // Message edit/delete events
   socket.on('message-edited', ({ roomId, message }) => {
     io.to(roomId).emit('message-updated', message);
   });
@@ -218,12 +176,10 @@ io.on('connection', (socket) => {
     io.to(roomId).emit('message-removed', { messageId });
   });
 
-  // Reaction events
   socket.on('add-reaction', ({ roomId, messageId, reaction }) => {
     io.to(roomId).emit('reaction-added', { messageId, reaction });
   });
 
-  // Direct Message events
   socket.on('join-dm', ({ conversationId, userId }) => {
     socket.join(`dm-${conversationId}`);
     console.log(`💬 User ${userId} joined DM conversation ${conversationId}`);
@@ -246,7 +202,6 @@ io.on('connection', (socket) => {
     socket.to(`dm-${conversationId}`).emit('dm-user-stop-typing');
   });
 
-  // DM message edit/delete events
   socket.on('dm-message-edited', ({ conversationId, message }) => {
     io.to(`dm-${conversationId}`).emit('dm-message-updated', message);
   });
@@ -255,12 +210,10 @@ io.on('connection', (socket) => {
     io.to(`dm-${conversationId}`).emit('dm-message-removed', { messageId });
   });
 
-  // DM reaction events
   socket.on('dm-add-reaction', ({ conversationId, messageId, reaction }) => {
     io.to(`dm-${conversationId}`).emit('dm-reaction-added', { messageId, reaction });
   });
 
-  // Video/Voice Call Events
   socket.on('call-user', ({ callerId, receiverId, callerName, roomId, type }) => {
     const callId = `${callerId}-${receiverId}-${Date.now()}`;
     videoCalls[callId] = { caller: callerId, receiver: receiverId, roomId, type };
@@ -315,7 +268,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // WebRTC signaling
   socket.on('webrtc-offer', ({ callId, offer }) => {
     const call = videoCalls[callId];
     if (call) {
@@ -383,12 +335,10 @@ io.on('connection', (socket) => {
   });
 });
 
-// Health check and root endpoints
 app.get('/', (req, res) => {
   res.json({ 
     message: 'Chat App API is running!',
     timestamp: new Date(),
-    cors: 'enabled',
     environment: process.env.NODE_ENV || 'development'
   });
 });
@@ -397,7 +347,6 @@ app.get('/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     timestamp: new Date(),
-    uptime: process.uptime(),
     mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
   });
 });
@@ -405,6 +354,5 @@ app.get('/health', (req, res) => {
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`✅ CORS enabled for client: ${process.env.CLIENT_URL || 'localhost'}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`✅ CORS enabled for Vercel frontend`);
 });
