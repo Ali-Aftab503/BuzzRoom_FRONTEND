@@ -8,26 +8,54 @@ require('dotenv').config();
 const app = express();
 const server = http.createServer(app);
 
-// CORS Configuration
+// CORS Configuration - Allow ALL Vercel deployments
 app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'https://buzz-room-frontend.vercel.app',
-    process.env.CLIENT_URL
-  ].filter(Boolean),
+  origin: function(origin, callback) {
+    if (!origin) return callback(null, true);
+    
+    const allowedPatterns = [
+      /^http:\/\/localhost:\d+$/,
+      /^https:\/\/.*\.vercel\.app$/,
+      'https://buzz-room-frontend.vercel.app'
+    ];
+    
+    const isAllowed = allowedPatterns.some(pattern => {
+      if (pattern instanceof RegExp) {
+        return pattern.test(origin);
+      }
+      return pattern === origin;
+    });
+    
+    callback(null, isAllowed);
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 
-// Socket.io CORS
+// Socket.io CORS - Allow ALL Vercel deployments
 const io = socketIo(server, {
   cors: {
-    origin: [
-      'http://localhost:5173',
-      'https://buzz-room-frontend.vercel.app',
-      process.env.CLIENT_URL
-    ].filter(Boolean),
+    origin: function(origin, callback) {
+      if (!origin) return callback(null, true);
+      
+      const allowedPatterns = [
+        /^http:\/\/localhost:\d+$/,
+        /^https:\/\/.*\.vercel\.app$/
+      ];
+      
+      const isAllowed = allowedPatterns.some(pattern => {
+        if (pattern instanceof RegExp) {
+          return pattern.test(origin);
+        }
+        return pattern === origin;
+      });
+      
+      callback(null, isAllowed);
+    },
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -339,7 +367,7 @@ app.get('/', (req, res) => {
   res.json({ 
     message: 'Chat App API is running!',
     timestamp: new Date(),
-    environment: process.env.NODE_ENV || 'development'
+    cors: 'enabled for all Vercel deployments'
   });
 });
 
@@ -354,5 +382,5 @@ app.get('/health', (req, res) => {
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`✅ CORS enabled for Vercel frontend`);
+  console.log(`✅ CORS enabled for all Vercel deployments`);
 });
