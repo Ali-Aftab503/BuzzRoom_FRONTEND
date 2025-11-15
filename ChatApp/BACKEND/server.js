@@ -43,6 +43,7 @@ app.use('/api/settings', settingsRoutes);
 const users = {}; // { userId: socketId }
 const rooms = {}; // { roomId: { userId: { socketId, username, online } } }
 const userRooms = {}; // { userId: Set([roomId1, roomId2]) }
+const videoCalls = {}; // { callId: { caller, receiver, roomId, type } }
 
 io.on('connection', (socket) => {
   console.log('🔌 New client connected:', socket.id);
@@ -145,6 +146,20 @@ io.on('connection', (socket) => {
     socket.to(roomId).emit('user-stop-typing');
   });
 
+  // Message edit/delete events
+  socket.on('message-edited', ({ roomId, message }) => {
+    io.to(roomId).emit('message-updated', message);
+  });
+
+  socket.on('message-deleted', ({ roomId, messageId }) => {
+    io.to(roomId).emit('message-removed', { messageId });
+  });
+
+  // Reaction events
+  socket.on('add-reaction', ({ roomId, messageId, reaction }) => {
+    io.to(roomId).emit('reaction-added', { messageId, reaction });
+  });
+
   // Direct Message events
   socket.on('join-dm', ({ conversationId, userId }) => {
     socket.join(`dm-${conversationId}`);
@@ -166,6 +181,106 @@ io.on('connection', (socket) => {
 
   socket.on('dm-stop-typing', ({ conversationId }) => {
     socket.to(`dm-${conversationId}`).emit('dm-user-stop-typing');
+  });
+
+  // DM message edit/delete events
+  socket.on('dm-message-edited', ({ conversationId, message }) => {
+    io.to(`dm-${conversationId}`).emit('dm-message-updated', message);
+  });
+
+  socket.on('dm-message-deleted', ({ conversationId, messageId }) => {
+    io.to(`dm-${conversationId}`).emit('dm-message-removed', { messageId });
+  });
+
+  // DM reaction events
+  socket.on('dm-add-reaction', ({ conversationId, messageId, reaction }) => {
+    io.to(`dm-${conversationId}`).emit('dm-reaction-added', { messageId, reaction });
+  });
+
+  // Video/Voice Call Events
+  socket.on('call-user', ({ callerId, receiverId, callerName, roomId, type }) => {
+    const callId = `${callerId}-${receiverId}-${Date.now()}`;
+    videoCalls[callId] = { caller: callerId, receiver: receiverId, roomId, type };
+    
+    const receiverSocketId = users[receiverId];
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit('incoming-call', {
+        callId,
+        callerId,
+        callerName,
+        roomId,
+        type
+      });
+    }
+  });
+
+  socket.on('answer-call', ({ callId, answer }) => {
+    const call = videoCalls[callId];
+    if (call) {
+      const callerSocketId = users[call.caller];
+      if (callerSocketId) {
+        io.to(callerSocketId).emit('call-answered', { callId, answer });
+      }
+    }
+  });
+
+  socket.on('reject-call', ({ callId }) => {
+    const call = videoCalls[callId];
+    if (call) {
+      const callerSocketId = users[call.caller];
+      if (callerSocketId) {
+        io.to(callerSocketId).emit('call-rejected', { callId });
+      }
+      delete videoCalls[callId];
+    }
+  });
+
+  socket.on('end-call', ({ callId }) => {
+    const call = videoCalls[callId];
+    if (call) {
+      const callerSocketId = users[call.caller];
+      const receiverSocketId = users[call.receiver];
+      
+      if (callerSocketId) {
+        io.to(callerSocketId).emit('call-ended', { callId });
+      }
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit('call-ended', { callId });
+      }
+      
+      delete videoCalls[callId];
+    }
+  });
+
+  // WebRTC signaling
+  socket.on('webrtc-offer', ({ callId, offer }) => {
+    const call = videoCalls[callId];
+    if (call) {
+      const receiverSocketId = users[call.receiver];
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit('webrtc-offer', { callId, offer });
+      }
+    }
+  });
+
+  socket.on('webrtc-answer', ({ callId, answer }) => {
+    const call = videoCalls[callId];
+    if (call) {
+      const callerSocketId = users[call.caller];
+      if (callerSocketId) {
+        io.to(callerSocketId).emit('webrtc-answer', { callId, answer });
+      }
+    }
+  });
+
+  socket.on('webrtc-ice-candidate', ({ callId, candidate, isReceiver }) => {
+    const call = videoCalls[callId];
+    if (call) {
+      const targetSocketId = isReceiver ? users[call.caller] : users[call.receiver];
+      if (targetSocketId) {
+        io.to(targetSocketId).emit('webrtc-ice-candidate', { callId, candidate });
+      }
+    }
   });
 
   socket.on('disconnect', () => {

@@ -5,6 +5,7 @@ import { getSocket } from '../../services/socket';
 import { useAuth } from '../../context/AuthContext';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
+import VideoCall from '../VideoCall/VideoCall';
 import { ChatRoomSkeleton } from '../common/SkeletonLoader';
 import Toast from '../common/Toast';
 
@@ -18,6 +19,8 @@ const ChatRoom = () => {
   const [showMembers, setShowMembers] = useState(false);
   const [toast, setToast] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('connected');
+  const [incomingCall, setIncomingCall] = useState(null);
+  const [activeCall, setActiveCall] = useState(null);
 
   const { roomId } = useParams();
   const navigate = useNavigate();
@@ -137,12 +140,63 @@ const ChatRoom = () => {
       setTyping('');
     };
 
+    const handleMessageUpdated = (updatedMessage) => {
+      setMessages(prev => prev.map(msg => 
+        msg._id === updatedMessage._id ? updatedMessage : msg
+      ));
+    };
+
+    const handleMessageRemoved = ({ messageId }) => {
+      setMessages(prev => prev.map(msg => 
+        msg._id === messageId ? { ...msg, deleted: true, content: 'This message was deleted' } : msg
+      ));
+    };
+
+    const handleReactionAdded = ({ messageId, reaction }) => {
+      setMessages(prev => prev.map(msg => {
+        if (msg._id === messageId) {
+          const reactions = msg.reactions || [];
+          const existingIndex = reactions.findIndex(
+            r => r.user._id === reaction.user._id && r.emoji === reaction.emoji
+          );
+          if (existingIndex >= 0) {
+            reactions.splice(existingIndex, 1);
+          } else {
+            reactions.push(reaction);
+          }
+          return { ...msg, reactions: [...reactions] };
+        }
+        return msg;
+      }));
+    };
+
+    // Video call events
+    const handleIncomingCall = ({ callId, callerId, callerName, type }) => {
+      setIncomingCall({ callId, callerId, callerName, type });
+    };
+
+    const handleCallRejected = () => {
+      showToast('Call was rejected', 'info');
+      setActiveCall(null);
+    };
+
+    const handleCallEnded = () => {
+      showToast('Call ended', 'info');
+      setActiveCall(null);
+    };
+
     socket.on('receive-message', handleReceiveMessage);
     socket.on('user-joined', handleUserJoined);
     socket.on('user-left', handleUserLeft);
     socket.on('room-users-updated', handleRoomUsersUpdate);
     socket.on('user-typing', handleUserTyping);
     socket.on('user-stop-typing', handleUserStopTyping);
+    socket.on('message-updated', handleMessageUpdated);
+    socket.on('message-removed', handleMessageRemoved);
+    socket.on('reaction-added', handleReactionAdded);
+    socket.on('incoming-call', handleIncomingCall);
+    socket.on('call-rejected', handleCallRejected);
+    socket.on('call-ended', handleCallEnded);
 
     return () => {
       console.log('🧹 Cleaning up socket listeners');
@@ -154,6 +208,12 @@ const ChatRoom = () => {
       socket.off('room-users-updated', handleRoomUsersUpdate);
       socket.off('user-typing', handleUserTyping);
       socket.off('user-stop-typing', handleUserStopTyping);
+      socket.off('message-updated', handleMessageUpdated);
+      socket.off('message-removed', handleMessageRemoved);
+      socket.off('reaction-added', handleReactionAdded);
+      socket.off('incoming-call', handleIncomingCall);
+      socket.off('call-rejected', handleCallRejected);
+      socket.off('call-ended', handleCallEnded);
 
       if (hasJoinedRoom.current) {
         console.log('👋 Leaving room...');
@@ -210,6 +270,7 @@ const ChatRoom = () => {
       messageType: messageType,
       createdAt: new Date(),
       status: 'sending',
+      reactions: []
     };
 
     console.log('📤 Sending message:', tempMessage);
@@ -239,7 +300,7 @@ const ChatRoom = () => {
       setMessages((prev) => 
         prev.map(msg => 
           msg._id === tempMessageId 
-            ? { ...msg, _id: response.data.data.message._id, status: 'delivered' }
+            ? { ...response.data.data.message, status: 'delivered' }
             : msg
         )
       );
@@ -260,6 +321,45 @@ const ChatRoom = () => {
     }
   };
 
+  const handleReaction = async (messageId, emoji) => {
+    try {
+      const response = await messageAPI.addReaction(messageId, emoji);
+      setMessages(prev => prev.map(msg => 
+        msg._id === messageId ? response.data.data.message : msg
+      ));
+      socket.emit('add-reaction', { roomId, messageId, reaction: { user: { _id: user.id, username: user.username, avatar: user.avatar }, emoji } });
+    } catch (error) {
+      console.error('Add reaction error:', error);
+      showToast('Failed to add reaction', 'error');
+    }
+  };
+
+  const handleEditMessage = async (messageId, content) => {
+    try {
+      const response = await messageAPI.editMessage(messageId, content);
+      setMessages(prev => prev.map(msg => 
+        msg._id === messageId ? response.data.data.message : msg
+      ));
+      socket.emit('message-edited', { roomId, message: response.data.data.message });
+    } catch (error) {
+      console.error('Edit message error:', error);
+      showToast('Failed to edit message', 'error');
+    }
+  };
+
+  const handleDeleteMessage = async (messageId) => {
+    try {
+      await messageAPI.deleteMessage(messageId);
+      setMessages(prev => prev.map(msg => 
+        msg._id === messageId ? { ...msg, deleted: true, content: 'This message was deleted' } : msg
+      ));
+      socket.emit('message-deleted', { roomId, messageId });
+    } catch (error) {
+      console.error('Delete message error:', error);
+      showToast('Failed to delete message', 'error');
+    }
+  };
+
   const handleTyping = () => {
     if (socket && socket.connected) {
       socket.emit('typing', { roomId, username: user.username });
@@ -272,8 +372,70 @@ const ChatRoom = () => {
     }
   };
 
+  const startCall = (type) => {
+    if (onlineCount <= 1) {
+      showToast('No one else is in the room', 'info');
+      return;
+    }
+    
+    // For simplicity, call the first online user that's not the current user
+    const otherUser = room.participants.find(p => 
+      p._id !== user.id && onlineUsers.includes(p._id)
+    );
+
+    if (otherUser) {
+      const callId = `${user.id}-${otherUser._id}-${Date.now()}`;
+      socket.emit('call-user', {
+        callerId: user.id,
+        receiverId: otherUser._id,
+        callerName: user.username,
+        roomId,
+        type
+      });
+      setActiveCall({ callId, isInitiator: true, otherUser, type });
+    }
+  };
+
+  const acceptCall = () => {
+    if (incomingCall) {
+      const caller = room.participants.find(p => p._id === incomingCall.callerId);
+      setActiveCall({ 
+        callId: incomingCall.callId, 
+        isInitiator: false, 
+        otherUser: caller,
+        type: incomingCall.type
+      });
+      socket.emit('answer-call', { callId: incomingCall.callId, answer: true });
+      setIncomingCall(null);
+    }
+  };
+
+  const rejectCall = () => {
+    if (incomingCall) {
+      socket.emit('reject-call', { callId: incomingCall.callId });
+      setIncomingCall(null);
+    }
+  };
+
+  const endCall = () => {
+    setActiveCall(null);
+  };
+
   if (loading) {
     return <ChatRoomSkeleton />;
+  }
+
+  if (activeCall) {
+    return (
+      <VideoCall
+        callId={activeCall.callId}
+        isInitiator={activeCall.isInitiator}
+        otherUserName={activeCall.otherUser.username}
+        socket={socket}
+        onEndCall={endCall}
+        callType={activeCall.type}
+      />
+    );
   }
 
   return (
@@ -284,6 +446,32 @@ const ChatRoom = () => {
           type={toast.type}
           onClose={closeToast}
         />
+      )}
+
+      {/* Incoming Call Notification */}
+      {incomingCall && (
+        <div className="fixed top-4 right-4 bg-zinc-900 border border-zinc-700 rounded-xl p-4 shadow-2xl z-50 animate-slideInRight">
+          <p className="text-white font-semibold mb-2">
+            {incomingCall.callerName} is calling...
+          </p>
+          <p className="text-zinc-400 text-sm mb-3">
+            {incomingCall.type === 'video' ? '📹 Video Call' : '🎤 Voice Call'}
+          </p>
+          <div className="flex space-x-2">
+            <button
+              onClick={acceptCall}
+              className="flex-1 bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg transition"
+            >
+              Accept
+            </button>
+            <button
+              onClick={rejectCall}
+              className="flex-1 bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg transition"
+            >
+              Decline
+            </button>
+          </div>
+        </div>
       )}
 
       {connectionStatus !== 'connected' && (
@@ -331,6 +519,28 @@ const ChatRoom = () => {
             </div>
 
             <div className="flex items-center space-x-2">
+              {/* Video Call Button */}
+              <button
+                onClick={() => startCall('video')}
+                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white p-3 rounded-xl transition-all duration-200 hidden sm:block"
+                title="Start video call"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </button>
+
+              {/* Voice Call Button */}
+              <button
+                onClick={() => startCall('audio')}
+                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white p-3 rounded-xl transition-all duration-200 hidden sm:block"
+                title="Start voice call"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+              </button>
+
               <button
                 onClick={() => setShowMembers(!showMembers)}
                 className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white p-3 rounded-xl transition-all duration-200 hidden sm:block"
@@ -350,7 +560,14 @@ const ChatRoom = () => {
         </div>
       </div>
 
-      <MessageList messages={messages} currentUserId={user.id} typing={typing} />
+      <MessageList 
+        messages={messages} 
+        currentUserId={user.id} 
+        typing={typing}
+        onReaction={handleReaction}
+        onEdit={handleEditMessage}
+        onDelete={handleDeleteMessage}
+      />
 
       <div className="bg-[#18181b] border-t border-zinc-800">
         <div className="px-4 sm:px-6 py-4">

@@ -44,7 +44,9 @@ export const roomAPI = {
 export const messageAPI = {
   getMessages: (roomId) => api.get(`/messages/${roomId}`),
   sendMessage: (messageData) => api.post('/messages', messageData),
+  editMessage: (messageId, content) => api.put(`/messages/${messageId}`, { content }),
   deleteMessage: (id) => api.delete(`/messages/${id}`),
+  addReaction: (messageId, emoji) => api.post(`/messages/${messageId}/reactions`, { emoji }),
 };
 
 // Favorites APIs
@@ -61,6 +63,9 @@ export const directMessagesAPI = {
   startConversation: (receiverId) => api.post('/direct-messages/start', { receiverId }),
   getMessages: (conversationId) => api.get(`/direct-messages/${conversationId}/messages`),
   sendMessage: (conversationId, content) => api.post(`/direct-messages/${conversationId}/messages`, { content }),
+  editMessage: (conversationId, messageId, content) => api.put(`/direct-messages/${conversationId}/messages/${messageId}`, { content }),
+  deleteMessage: (conversationId, messageId) => api.delete(`/direct-messages/${conversationId}/messages/${messageId}`),
+  addReaction: (conversationId, messageId, emoji) => api.post(`/direct-messages/${conversationId}/messages/${messageId}/reactions`, { emoji }),
   searchUsers: (query) => api.get('/direct-messages/users/search', { params: { query } }),
 };
 

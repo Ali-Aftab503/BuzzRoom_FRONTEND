@@ -21,6 +21,42 @@ const dmMessageSchema = new mongoose.Schema({
     required: [true, 'Message content is required'],
     trim: true
   },
+  reactions: [{
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    emoji: {
+      type: String,
+      required: true
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  edited: {
+    type: Boolean,
+    default: false
+  },
+  editHistory: [{
+    content: String,
+    editedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  deleted: {
+    type: Boolean,
+    default: false
+  },
+  urlPreviews: [{
+    url: String,
+    title: String,
+    description: String,
+    image: String,
+    siteName: String
+  }],
   read: {
     type: Boolean,
     default: false

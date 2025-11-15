@@ -4,6 +4,42 @@ const DirectMessage = require('../models/DirectMessage');
 const DMMessage = require('../models/DMMessage');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
+const axios = require('axios');
+const cheerio = require('cheerio');
+
+// Helper function to extract URL previews
+const extractUrlPreviews = async (content) => {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const urls = content.match(urlRegex) || [];
+  const previews = [];
+
+  for (const url of urls.slice(0, 3)) {
+    try {
+      const response = await axios.get(url, {
+        timeout: 5000,
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      });
+      
+      const $ = cheerio.load(response.data);
+      
+      const preview = {
+        url,
+        title: $('meta[property="og:title"]').attr('content') || $('title').text() || '',
+        description: $('meta[property="og:description"]').attr('content') || $('meta[name="description"]').attr('content') || '',
+        image: $('meta[property="og:image"]').attr('content') || '',
+        siteName: $('meta[property="og:site_name"]').attr('content') || new URL(url).hostname
+      };
+
+      if (preview.title || preview.description || preview.image) {
+        previews.push(preview);
+      }
+    } catch (error) {
+      console.error('URL preview error:', error.message);
+    }
+  }
+
+  return previews;
+};
 
 router.get('/', authMiddleware, async (req, res) => {
   try {
@@ -100,9 +136,10 @@ router.get('/:conversationId/messages', authMiddleware, async (req, res) => {
       });
     }
 
-    const messages = await DMMessage.find({ conversation: conversationId })
+    const messages = await DMMessage.find({ conversation: conversationId, deleted: false })
       .populate('sender', 'username avatar')
       .populate('receiver', 'username avatar')
+      .populate('reactions.user', 'username avatar')
       .sort({ createdAt: 1 })
       .limit(limit);
 
@@ -163,11 +200,15 @@ router.post('/:conversationId/messages', authMiddleware, async (req, res) => {
       id => id.toString() !== req.user._id.toString()
     );
 
+    // Extract URL previews
+    const urlPreviews = await extractUrlPreviews(content);
+
     const message = await DMMessage.create({
       conversation: conversationId,
       sender: req.user._id,
       receiver: receiverId,
-      content
+      content,
+      urlPreviews
     });
 
     const populatedMessage = await DMMessage.findById(message._id)
@@ -193,6 +234,145 @@ router.post('/:conversationId/messages', authMiddleware, async (req, res) => {
     });
   } catch (error) {
     console.error('Send message error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
+// Edit DM message
+router.put('/:conversationId/messages/:messageId', authMiddleware, async (req, res) => {
+  try {
+    const { content } = req.body;
+    const message = await DMMessage.findById(req.params.messageId);
+
+    if (!message) {
+      return res.status(404).json({
+        success: false,
+        message: 'Message not found'
+      });
+    }
+
+    if (message.sender.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only edit your own messages'
+      });
+    }
+
+    message.editHistory.push({
+      content: message.content,
+      editedAt: new Date()
+    });
+
+    const urlPreviews = await extractUrlPreviews(content);
+
+    message.content = content;
+    message.edited = true;
+    message.urlPreviews = urlPreviews;
+    await message.save();
+
+    const populatedMessage = await DMMessage.findById(message._id)
+      .populate('sender', 'username avatar')
+      .populate('receiver', 'username avatar')
+      .populate('reactions.user', 'username avatar');
+
+    res.json({
+      success: true,
+      message: 'Message updated successfully',
+      data: { message: populatedMessage }
+    });
+  } catch (error) {
+    console.error('Edit message error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
+// Delete DM message
+router.delete('/:conversationId/messages/:messageId', authMiddleware, async (req, res) => {
+  try {
+    const message = await DMMessage.findById(req.params.messageId);
+
+    if (!message) {
+      return res.status(404).json({
+        success: false,
+        message: 'Message not found'
+      });
+    }
+
+    if (message.sender.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only delete your own messages'
+      });
+    }
+
+    message.deleted = true;
+    message.content = 'This message was deleted';
+    await message.save();
+
+    res.json({
+      success: true,
+      message: 'Message deleted successfully',
+      data: { messageId: message._id }
+    });
+  } catch (error) {
+    console.error('Delete message error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
+// Add reaction to DM
+router.post('/:conversationId/messages/:messageId/reactions', authMiddleware, async (req, res) => {
+  try {
+    const { emoji } = req.body;
+    const message = await DMMessage.findById(req.params.messageId);
+
+    if (!message) {
+      return res.status(404).json({
+        success: false,
+        message: 'Message not found'
+      });
+    }
+
+    const existingReaction = message.reactions.find(
+      r => r.user.toString() === req.user._id.toString() && r.emoji === emoji
+    );
+
+    if (existingReaction) {
+      message.reactions = message.reactions.filter(
+        r => !(r.user.toString() === req.user._id.toString() && r.emoji === emoji)
+      );
+    } else {
+      message.reactions.push({
+        user: req.user._id,
+        emoji
+      });
+    }
+
+    await message.save();
+
+    const populatedMessage = await DMMessage.findById(message._id)
+      .populate('sender', 'username avatar')
+      .populate('receiver', 'username avatar')
+      .populate('reactions.user', 'username avatar');
+
+    res.json({
+      success: true,
+      data: { message: populatedMessage }
+    });
+  } catch (error) {
+    console.error('Add reaction error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
