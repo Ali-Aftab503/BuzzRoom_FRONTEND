@@ -9,7 +9,7 @@ const app = express();
 app.use(cors({
   origin: [
     "http://localhost:5173",
-    process.env.CLIENT_URL,
+    "https://buzz-room-frontend.vercel.app", // Add your exact Vercel URL
     "https://*.vercel.app"
   ],
   credentials: true
