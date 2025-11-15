@@ -6,11 +6,24 @@ const socketIo = require('socket.io');
 require('dotenv').config();
 
 const app = express();
+app.use(cors({
+  origin: [
+    "http://localhost:5173",
+    process.env.CLIENT_URL,
+    "https://*.vercel.app"
+  ],
+  credentials: true
+}));
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
-    methods: ["GET", "POST"]
+    origin: [
+      "http://localhost:5173",
+      process.env.CLIENT_URL, // This will be your Vercel URL
+      "https://*.vercel.app" // Allow all Vercel deployments
+    ],
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
