@@ -78,6 +78,11 @@ const ChatRoom = () => {
 if (!hasJoinedRoom.current && socket.connected) {
   console.log('👋 Joining room...', { roomId, userId: user.id, username: user.username });
   
+  // Register user first
+  socket.emit('user-connected', user.id);
+  
+  socket.emit('join-room', { roomId, userId: user.id, username: user.username });
+  
   // IMPORTANT: Register user first
   socket.emit('user-connected', user.id);
   console.log('📡 Emitted user-connected:', user.id);
@@ -422,18 +427,18 @@ if (!hasJoinedRoom.current && socket.connected) {
   setActiveCall({ callId, isInitiator: true, otherUser, type });
 };
   const acceptCall = () => {
-    if (incomingCall) {
-      const caller = room.participants.find(p => p._id === incomingCall.callerId);
-      setActiveCall({ 
-        callId: incomingCall.callId, 
-        isInitiator: false, 
-        otherUser: caller,
-        type: incomingCall.type
-      });
-      socket.emit('answer-call', { callId: incomingCall.callId, answer: true });
-      setIncomingCall(null);
-    }
-  };
+  if (incomingCall) {
+    const caller = room.participants.find(p => p._id === incomingCall.callerId);
+    setActiveCall({ 
+      callId: incomingCall.callId, 
+      isInitiator: false, 
+      otherUser: caller || { username: incomingCall.callerName },
+      type: incomingCall.type
+    });
+    socket.emit('accept-call', { callId: incomingCall.callId, roomId });
+    setIncomingCall(null);
+  }
+};
 
   const rejectCall = () => {
     if (incomingCall) {
@@ -450,18 +455,19 @@ if (!hasJoinedRoom.current && socket.connected) {
     return <ChatRoomSkeleton />;
   }
 
-  if (activeCall) {
-    return (
-      <VideoCall
-        callId={activeCall.callId}
-        isInitiator={activeCall.isInitiator}
-        otherUserName={activeCall.otherUser.username}
-        socket={socket}
-        onEndCall={endCall}
-        callType={activeCall.type}
-      />
-    );
-  }
+ if (activeCall) {
+  return (
+    <VideoCall
+      callId={activeCall.callId}
+      isInitiator={activeCall.isInitiator}
+      otherUserName={activeCall.otherUser.username}
+      socket={socket}
+      onEndCall={endCall}
+      callType={activeCall.type}
+      roomId={roomId}
+    />
+  );
+}
 
   return (
     <div className="h-screen flex flex-col bg-[#0f0f0f]">
