@@ -8,7 +8,7 @@ require('dotenv').config();
 const app = express();
 const server = http.createServer(app);
 
-// CORS Configuration - Allow ALL Vercel deployments
+// CORS Configuration
 app.use(cors({
   origin: function(origin, callback) {
     if (!origin) return callback(null, true);
@@ -36,7 +36,7 @@ app.use(cors({
   optionsSuccessStatus: 204
 }));
 
-// Socket.io CORS - Allow ALL Vercel deployments
+// Socket.io CORS
 const io = socketIo(server, {
   cors: {
     origin: function(origin, callback) {
@@ -93,70 +93,65 @@ app.use('/api/settings', settingsRoutes);
 const users = {};
 const rooms = {};
 const userRooms = {};
-const videoCalls = {};
+const activeCalls = new Map();
 
 io.on('connection', (socket) => {
   console.log('🔌 New client connected:', socket.id);
 
- socket.on('user-connected', (userId) => {
-  users[userId] = socket.id;
-  console.log(`✅ User registered: ${userId} -> Socket: ${socket.id}`);
-  console.log('👥 Current users:', Object.keys(users));
-  
-  if (!userRooms[userId]) {
-    userRooms[userId] = new Set();
-  }
-});
+  socket.on('user-connected', (userId) => {
+    users[userId] = socket.id;
+    console.log(`✅ User registered: ${userId} -> Socket: ${socket.id}`);
+    
+    if (!userRooms[userId]) {
+      userRooms[userId] = new Set();
+    }
+  });
 
   socket.on('join-room', ({ roomId, userId, username }) => {
-  socket.join(roomId);
-  
-  // Make sure user is registered in users map
-  if (!users[userId]) {
-    users[userId] = socket.id;
-    console.log(`📝 Auto-registered user on join: ${userId} -> ${socket.id}`);
-  }
-  
-  if (!rooms[roomId]) {
-    rooms[roomId] = {};
-  }
-  
-  rooms[roomId][userId] = {
-    socketId: socket.id,
-    username: username,
-    online: true
-  };
-  
-  if (!userRooms[userId]) {
-    userRooms[userId] = new Set();
-  }
-  userRooms[userId].add(roomId);
+    socket.join(roomId);
+    
+    if (!users[userId]) {
+      users[userId] = socket.id;
+    }
+    
+    if (!rooms[roomId]) {
+      rooms[roomId] = {};
+    }
+    
+    rooms[roomId][userId] = {
+      socketId: socket.id,
+      username: username,
+      online: true
+    };
+    
+    if (!userRooms[userId]) {
+      userRooms[userId] = new Set();
+    }
+    userRooms[userId].add(roomId);
 
-  const onlineUsers = Object.keys(rooms[roomId]).filter(
-    id => rooms[roomId][id].online
-  );
+    const onlineUsers = Object.keys(rooms[roomId]).filter(
+      id => rooms[roomId][id].online
+    );
 
-  socket.to(roomId).emit('user-joined', {
-    userId,
-    username,
-    message: `${username} joined the room`
+    socket.to(roomId).emit('user-joined', {
+      userId,
+      username,
+      message: `${username} joined the room`
+    });
+
+    io.to(roomId).emit('room-users-updated', {
+      roomId,
+      onlineCount: onlineUsers.length,
+      onlineUsers: onlineUsers
+    });
+    
+    io.emit('global-room-update', {
+      roomId,
+      onlineCount: onlineUsers.length
+    });
+    
+    console.log(`👥 User ${username} joined room ${roomId}. Online: ${onlineUsers.length}`);
   });
-
-  io.to(roomId).emit('room-users-updated', {
-    roomId,
-    onlineCount: onlineUsers.length,
-    onlineUsers: onlineUsers
-  });
-  
-  io.emit('global-room-update', {
-    roomId,
-    onlineCount: onlineUsers.length
-  });
-  
-  console.log(`👥 User ${username} (${userId}) joined room ${roomId}`);
-  console.log(`📊 Users map:`, users);
-});
-
 
   socket.on('leave-room', ({ roomId, userId, username }) => {
     socket.leave(roomId);
@@ -189,8 +184,6 @@ io.on('connection', (socket) => {
       roomId,
       onlineCount: onlineUsers.length
     });
-    
-    console.log(`👋 User ${username} left room ${roomId}. Online: ${onlineUsers.length}`);
   });
 
   socket.on('send-message', (messageData) => {
@@ -219,12 +212,10 @@ io.on('connection', (socket) => {
 
   socket.on('join-dm', ({ conversationId, userId }) => {
     socket.join(`dm-${conversationId}`);
-    console.log(`💬 User ${userId} joined DM conversation ${conversationId}`);
   });
 
   socket.on('leave-dm', ({ conversationId, userId }) => {
     socket.leave(`dm-${conversationId}`);
-    console.log(`💬 User ${userId} left DM conversation ${conversationId}`);
   });
 
   socket.on('send-dm', (messageData) => {
@@ -251,122 +242,44 @@ io.on('connection', (socket) => {
     io.to(`dm-${conversationId}`).emit('dm-reaction-added', { messageId, reaction });
   });
 
- socket.on('call-user', ({ callerId, receiverId, callerName, roomId, type }) => {
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('📞 INCOMING CALL REQUEST');
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('👤 Caller ID:', callerId);
-  console.log('👤 Receiver ID:', receiverId);
-  console.log('👤 Caller Name:', callerName);
-  console.log('🏠 Room ID:', roomId);
-  console.log('📹 Call Type:', type);
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  
-  const callId = `${callerId}-${receiverId}-${Date.now()}`;
-  videoCalls[callId] = { caller: callerId, receiver: receiverId, roomId, type };
-  
-  console.log('📋 All registered users:', Object.keys(users));
-  console.log('🔍 Looking up receiver socket...');
-  
-  const receiverSocketId = users[receiverId];
-  
-  if (receiverSocketId) {
-    console.log('✅ Found receiver socket:', receiverSocketId);
-    console.log('📤 Emitting incoming-call to receiver...');
+  // Video Call Events - Simplified
+  socket.on('call-user', ({ callerId, receiverId, callerName, roomId, type }) => {
+    console.log(`📞 Call from ${callerName} to room ${roomId}`);
     
-    io.to(receiverSocketId).emit('incoming-call', {
-      callId,
-      callerId,
-      callerName,
-      roomId,
-      type
-    });
+    const callId = `call-${Date.now()}-${Math.random()}`;
+    activeCalls.set(callId, { callerId, receiverId, roomId, type });
     
-    console.log('✅ Call notification sent successfully!');
-  } else {
-    console.log('❌ ERROR: Receiver socket not found!');
-    console.log('❌ Receiver ID:', receiverId);
-    console.log('❌ Available users:', users);
-    
-    // Fallback: broadcast to room
-    console.log('⚠️ Fallback: Broadcasting to room:', roomId);
     socket.to(roomId).emit('incoming-call', {
       callId,
       callerId,
       callerName,
-      roomId,
       type
     });
-  }
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-});
-
-  socket.on('answer-call', ({ callId, answer }) => {
-    const call = videoCalls[callId];
-    if (call) {
-      const callerSocketId = users[call.caller];
-      if (callerSocketId) {
-        io.to(callerSocketId).emit('call-answered', { callId, answer });
-      }
-    }
+    
+    console.log(`✅ Call broadcasted to room: ${roomId}`);
   });
 
-  socket.on('reject-call', ({ callId }) => {
-    const call = videoCalls[callId];
-    if (call) {
-      const callerSocketId = users[call.caller];
-      if (callerSocketId) {
-        io.to(callerSocketId).emit('call-rejected', { callId });
-      }
-      delete videoCalls[callId];
-    }
+  socket.on('accept-call', ({ callId, roomId }) => {
+    console.log(`✅ Call accepted: ${callId}`);
+    socket.to(roomId).emit('call-accepted', { callId });
   });
 
-  socket.on('end-call', ({ callId }) => {
-    const call = videoCalls[callId];
-    if (call) {
-      const callerSocketId = users[call.caller];
-      const receiverSocketId = users[call.receiver];
-      
-      if (callerSocketId) {
-        io.to(callerSocketId).emit('call-ended', { callId });
-      }
-      if (receiverSocketId) {
-        io.to(receiverSocketId).emit('call-ended', { callId });
-      }
-      
-      delete videoCalls[callId];
-    }
+  socket.on('reject-call', ({ callId, roomId }) => {
+    console.log(`❌ Call rejected: ${callId}`);
+    socket.to(roomId).emit('call-rejected', { callId });
+    activeCalls.delete(callId);
   });
 
-  socket.on('webrtc-offer', ({ callId, offer }) => {
-    const call = videoCalls[callId];
-    if (call) {
-      const receiverSocketId = users[call.receiver];
-      if (receiverSocketId) {
-        io.to(receiverSocketId).emit('webrtc-offer', { callId, offer });
-      }
-    }
+  socket.on('end-call', ({ callId, roomId }) => {
+    console.log(`📴 Call ended: ${callId}`);
+    io.to(roomId).emit('call-ended', { callId });
+    activeCalls.delete(callId);
   });
 
-  socket.on('webrtc-answer', ({ callId, answer }) => {
-    const call = videoCalls[callId];
-    if (call) {
-      const callerSocketId = users[call.caller];
-      if (callerSocketId) {
-        io.to(callerSocketId).emit('webrtc-answer', { callId, answer });
-      }
-    }
-  });
-
-  socket.on('webrtc-ice-candidate', ({ callId, candidate, isReceiver }) => {
-    const call = videoCalls[callId];
-    if (call) {
-      const targetSocketId = isReceiver ? users[call.caller] : users[call.receiver];
-      if (targetSocketId) {
-        io.to(targetSocketId).emit('webrtc-ice-candidate', { callId, candidate });
-      }
-    }
+  // WebRTC Signaling
+  socket.on('webrtc-signal', ({ roomId, signal }) => {
+    console.log(`📡 WebRTC signal in room ${roomId}:`, signal.type);
+    socket.to(roomId).emit('webrtc-signal', { signal });
   });
 
   socket.on('disconnect', () => {
@@ -394,8 +307,6 @@ io.on('connection', (socket) => {
               roomId,
               onlineCount: onlineUsers.length
             });
-            
-            console.log(`❌ User ${userId} went offline in room ${roomId}. Online: ${onlineUsers.length}`);
           }
         });
       }
@@ -421,15 +332,16 @@ app.get('/health', (req, res) => {
     mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
   });
 });
+
 app.get('/debug/state', (req, res) => {
   res.json({ 
     users: users,
-    rooms: rooms,
-    videoCalls: videoCalls,
-    totalUsers: Object.keys(users).length,
-    totalRooms: Object.keys(rooms).length
+    rooms: Object.keys(rooms),
+    activeCalls: activeCalls.size,
+    totalUsers: Object.keys(users).length
   });
 });
+
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
