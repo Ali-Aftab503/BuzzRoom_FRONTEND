@@ -48,15 +48,22 @@ const VideoCall = ({
   };
 
   useEffect(() => {
+    console.log('🎥 Initializing video call...');
     initializeCall();
 
     return () => {
+      console.log('🧹 Cleaning up video call...');
       cleanup();
     };
   }, []);
 
   useEffect(() => {
-    if (!socket) return;
+    if (!socket) {
+      console.error('❌ Socket not available for WebRTC');
+      return;
+    }
+
+    console.log('📡 Setting up WebRTC socket listeners');
 
     socket.on('webrtc-offer', handleReceiveOffer);
     socket.on('webrtc-answer', handleReceiveAnswer);
