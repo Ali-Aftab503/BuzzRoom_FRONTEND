@@ -242,21 +242,29 @@ io.on('connection', (socket) => {
     io.to(`dm-${conversationId}`).emit('dm-reaction-added', { messageId, reaction });
   });
 
-  socket.on('call-user', ({ callerId, receiverId, callerName, roomId, type }) => {
-    const callId = `${callerId}-${receiverId}-${Date.now()}`;
-    videoCalls[callId] = { caller: callerId, receiver: receiverId, roomId, type };
-    
-    const receiverSocketId = users[receiverId];
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit('incoming-call', {
-        callId,
-        callerId,
-        callerName,
-        roomId,
-        type
-      });
-    }
-  });
+ socket.on('call-user', ({ callerId, receiverId, callerName, roomId, type }) => {
+  const callId = `${callerId}-${receiverId}-${Date.now()}`;
+  videoCalls[callId] = { caller: callerId, receiver: receiverId, roomId, type };
+  
+  console.log('📞 Call from:', callerId, 'to:', receiverId);
+  console.log('👥 Users map:', users);
+  
+  const receiverSocketId = users[receiverId];
+  console.log('🔍 Receiver socket ID:', receiverSocketId);
+  
+  if (receiverSocketId) {
+    console.log('📤 Sending call to socket:', receiverSocketId);
+    io.to(receiverSocketId).emit('incoming-call', {
+      callId,
+      callerId,
+      callerName,
+      roomId,
+      type
+    });
+  } else {
+    console.log('❌ Receiver not found in users map');
+  }
+});
 
   socket.on('answer-call', ({ callId, answer }) => {
     const call = videoCalls[callId];
