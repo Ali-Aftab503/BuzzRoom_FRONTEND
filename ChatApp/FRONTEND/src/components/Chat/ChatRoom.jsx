@@ -74,16 +74,22 @@ const ChatRoom = () => {
     fetchRoomData();
 
     // JOIN ROOM - This is critical!
-    if (!hasJoinedRoom.current && socket.connected) {
-      console.log('👋 Joining room...', { roomId, userId: user.id, username: user.username });
-      socket.emit('join-room', {
-        roomId,
-        userId: user.id,
-        username: user.username,
-      });
-      hasJoinedRoom.current = true;
-    }
-
+   // JOIN ROOM - This is critical!
+if (!hasJoinedRoom.current && socket.connected) {
+  console.log('👋 Joining room...', { roomId, userId: user.id, username: user.username });
+  
+  // IMPORTANT: Register user first
+  socket.emit('user-connected', user.id);
+  console.log('📡 Emitted user-connected:', user.id);
+  
+  // Then join room
+  socket.emit('join-room', {
+    roomId,
+    userId: user.id,
+    username: user.username,
+  });
+  hasJoinedRoom.current = true;
+}
     const handleReceiveMessage = (messageData) => {
       console.log('📨 Received message:', messageData);
       setMessages((prev) => {
