@@ -98,56 +98,65 @@ const videoCalls = {};
 io.on('connection', (socket) => {
   console.log('🔌 New client connected:', socket.id);
 
-  socket.on('user-connected', (userId) => {
-    users[userId] = socket.id;
-    console.log(`✅ User ${userId} connected with socket ${socket.id}`);
-    
-    if (!userRooms[userId]) {
-      userRooms[userId] = new Set();
-    }
-  });
+ socket.on('user-connected', (userId) => {
+  users[userId] = socket.id;
+  console.log(`✅ User registered: ${userId} -> Socket: ${socket.id}`);
+  console.log('👥 Current users:', Object.keys(users));
+  
+  if (!userRooms[userId]) {
+    userRooms[userId] = new Set();
+  }
+});
 
   socket.on('join-room', ({ roomId, userId, username }) => {
-    socket.join(roomId);
-    
-    if (!rooms[roomId]) {
-      rooms[roomId] = {};
-    }
-    
-    rooms[roomId][userId] = {
-      socketId: socket.id,
-      username: username,
-      online: true
-    };
-    
-    if (!userRooms[userId]) {
-      userRooms[userId] = new Set();
-    }
-    userRooms[userId].add(roomId);
+  socket.join(roomId);
+  
+  // Make sure user is registered in users map
+  if (!users[userId]) {
+    users[userId] = socket.id;
+    console.log(`📝 Auto-registered user on join: ${userId} -> ${socket.id}`);
+  }
+  
+  if (!rooms[roomId]) {
+    rooms[roomId] = {};
+  }
+  
+  rooms[roomId][userId] = {
+    socketId: socket.id,
+    username: username,
+    online: true
+  };
+  
+  if (!userRooms[userId]) {
+    userRooms[userId] = new Set();
+  }
+  userRooms[userId].add(roomId);
 
-    const onlineUsers = Object.keys(rooms[roomId]).filter(
-      id => rooms[roomId][id].online
-    );
+  const onlineUsers = Object.keys(rooms[roomId]).filter(
+    id => rooms[roomId][id].online
+  );
 
-    socket.to(roomId).emit('user-joined', {
-      userId,
-      username,
-      message: `${username} joined the room`
-    });
-
-    io.to(roomId).emit('room-users-updated', {
-      roomId,
-      onlineCount: onlineUsers.length,
-      onlineUsers: onlineUsers
-    });
-    
-    io.emit('global-room-update', {
-      roomId,
-      onlineCount: onlineUsers.length
-    });
-    
-    console.log(`👥 User ${username} joined room ${roomId}. Online: ${onlineUsers.length}`);
+  socket.to(roomId).emit('user-joined', {
+    userId,
+    username,
+    message: `${username} joined the room`
   });
+
+  io.to(roomId).emit('room-users-updated', {
+    roomId,
+    onlineCount: onlineUsers.length,
+    onlineUsers: onlineUsers
+  });
+  
+  io.emit('global-room-update', {
+    roomId,
+    onlineCount: onlineUsers.length
+  });
+  
+  console.log(`👥 User ${username} (${userId}) joined room ${roomId}`);
+  console.log(`📊 Users map:`, users);
+});
+
 
   socket.on('leave-room', ({ roomId, userId, username }) => {
     socket.leave(roomId);
@@ -243,17 +252,28 @@ io.on('connection', (socket) => {
   });
 
  socket.on('call-user', ({ callerId, receiverId, callerName, roomId, type }) => {
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('📞 INCOMING CALL REQUEST');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('👤 Caller ID:', callerId);
+  console.log('👤 Receiver ID:', receiverId);
+  console.log('👤 Caller Name:', callerName);
+  console.log('🏠 Room ID:', roomId);
+  console.log('📹 Call Type:', type);
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  
   const callId = `${callerId}-${receiverId}-${Date.now()}`;
   videoCalls[callId] = { caller: callerId, receiver: receiverId, roomId, type };
   
-  console.log('📞 Call from:', callerId, 'to:', receiverId);
-  console.log('👥 Users map:', users);
+  console.log('📋 All registered users:', Object.keys(users));
+  console.log('🔍 Looking up receiver socket...');
   
   const receiverSocketId = users[receiverId];
-  console.log('🔍 Receiver socket ID:', receiverSocketId);
   
   if (receiverSocketId) {
-    console.log('📤 Sending call to socket:', receiverSocketId);
+    console.log('✅ Found receiver socket:', receiverSocketId);
+    console.log('📤 Emitting incoming-call to receiver...');
+    
     io.to(receiverSocketId).emit('incoming-call', {
       callId,
       callerId,
@@ -261,9 +281,24 @@ io.on('connection', (socket) => {
       roomId,
       type
     });
+    
+    console.log('✅ Call notification sent successfully!');
   } else {
-    console.log('❌ Receiver not found in users map');
+    console.log('❌ ERROR: Receiver socket not found!');
+    console.log('❌ Receiver ID:', receiverId);
+    console.log('❌ Available users:', users);
+    
+    // Fallback: broadcast to room
+    console.log('⚠️ Fallback: Broadcasting to room:', roomId);
+    socket.to(roomId).emit('incoming-call', {
+      callId,
+      callerId,
+      callerName,
+      roomId,
+      type
+    });
   }
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 });
 
   socket.on('answer-call', ({ callId, answer }) => {
@@ -386,7 +421,15 @@ app.get('/health', (req, res) => {
     mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
   });
 });
-
+app.get('/debug/state', (req, res) => {
+  res.json({ 
+    users: users,
+    rooms: rooms,
+    videoCalls: videoCalls,
+    totalUsers: Object.keys(users).length,
+    totalRooms: Object.keys(rooms).length
+  });
+});
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
