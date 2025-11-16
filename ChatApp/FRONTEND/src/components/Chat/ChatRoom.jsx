@@ -373,29 +373,48 @@ const ChatRoom = () => {
   };
 
   const startCall = (type) => {
-    if (onlineCount <= 1) {
-      showToast('No one else is in the room', 'info');
-      return;
-    }
-    
-    // For simplicity, call the first online user that's not the current user
-    const otherUser = room.participants.find(p => 
-      p._id !== user.id && onlineUsers.includes(p._id)
-    );
+  if (onlineCount <= 1) {
+    showToast('No one else is in the room', 'info');
+    return;
+  }
+  
+  // Get the first online user that's not the current user
+  const otherUserId = onlineUsers.find(userId => userId !== user.id);
+  
+  if (!otherUserId) {
+    showToast('No other user found', 'error');
+    return;
+  }
 
-    if (otherUser) {
-      const callId = `${user.id}-${otherUser._id}-${Date.now()}`;
-      socket.emit('call-user', {
-        callerId: user.id,
-        receiverId: otherUser._id,
-        callerName: user.username,
-        roomId,
-        type
-      });
-      setActiveCall({ callId, isInitiator: true, otherUser, type });
-    }
-  };
+  // Find the user details
+  const otherUser = room.participants.find(p => p._id === otherUserId);
+  
+  if (!otherUser) {
+    showToast('Could not find user details', 'error');
+    return;
+  }
 
+  console.log('📞 Starting call to:', otherUser.username, 'userId:', otherUserId);
+
+  const callId = `${user.id}-${otherUserId}-${Date.now()}`;
+  
+  if (!socket || !socket.connected) {
+    showToast('Socket not connected', 'error');
+    return;
+  }
+
+  socket.emit('call-user', {
+    callerId: user.id,
+    receiverId: otherUserId,
+    callerName: user.username,
+    roomId,
+    type
+  });
+
+  console.log('📤 Call signal sent');
+
+  setActiveCall({ callId, isInitiator: true, otherUser, type });
+};
   const acceptCall = () => {
     if (incomingCall) {
       const caller = room.participants.find(p => p._id === incomingCall.callerId);

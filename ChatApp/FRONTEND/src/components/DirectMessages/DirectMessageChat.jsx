@@ -219,17 +219,33 @@ const DirectMessageChat = () => {
     }
   };
 
-  const startCall = (type) => {
-    const callId = `${user.id}-${otherUser._id}-${Date.now()}`;
-    socket.emit('call-user', {
-      callerId: user.id,
-      receiverId: otherUser._id,
-      callerName: user.username,
-      roomId: conversationId,
-      type
-    });
-    setActiveCall({ callId, isInitiator: true, otherUser, type });
-  };
+ const startCall = (type) => {
+  if (!otherUser) {
+    console.error('❌ No other user found');
+    return;
+  }
+
+  console.log('📞 Starting DM call to:', otherUser.username, 'ID:', otherUser._id);
+
+  const callId = `${user.id}-${otherUser._id}-${Date.now()}`;
+  
+  if (!socket || !socket.connected) {
+    console.error('❌ Socket not connected');
+    return;
+  }
+
+  console.log('📤 Emitting call-user event');
+  socket.emit('call-user', {
+    callerId: user.id,
+    receiverId: otherUser._id,
+    callerName: user.username,
+    roomId: conversationId,
+    type
+  });
+
+  console.log('✅ Call signal sent, setting active call');
+  setActiveCall({ callId, isInitiator: true, otherUser, type });
+};
 
   const acceptCall = () => {
     if (incomingCall) {

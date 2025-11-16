@@ -26,30 +26,31 @@ export const AuthProvider = ({ children }) => {
   }, [token]);
 
   const loadUser = async () => {
-    try {
-      const response = await authAPI.getMe();
-      setUser(response.data.data.user);
-      
-      // Initialize socket connection
-      const socket = initializeSocket();
-      connectSocket();
-      
-      // Wait a bit for connection to establish
-      setTimeout(() => {
-        if (socket.connected) {
-          socket.emit('user-connected', response.data.data.user.id);
-          console.log('✅ Socket connected and user registered');
-        } else {
-          console.error('❌ Socket not connected');
-        }
-      }, 100);
-    } catch (error) {
-      console.error('Load user error:', error);
-      logout();
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    const response = await authAPI.getMe();
+    setUser(response.data.data.user);
+    
+    // Initialize socket connection
+    const socket = initializeSocket();
+    connectSocket();
+    
+    // Wait for connection
+    setTimeout(() => {
+      if (socket.connected) {
+        console.log('📡 Emitting user-connected for:', response.data.data.user.id);
+        socket.emit('user-connected', response.data.data.user.id);
+        console.log('✅ Socket connected and user registered');
+      } else {
+        console.error('❌ Socket not connected');
+      }
+    }, 500); // Increased timeout to 500ms
+  } catch (error) {
+    console.error('Load user error:', error);
+    logout();
+  } finally {
+    setLoading(false);
+  }
+};
 
   const login = async (credentials) => {
     try {
