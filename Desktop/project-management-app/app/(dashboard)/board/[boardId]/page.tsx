@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { BoardContainer } from "@/components/kanban/BoardContainer";
+import { BoardContainerWrapper } from "@/components/kanban/BoardContainerWrapper"; // Changed
 import { notFound } from "next/navigation";
 
 interface BoardPageProps {
@@ -57,9 +57,9 @@ export default async function BoardPage({ params }: BoardPageProps) {
     notFound();
   }
 
-  return (
+ return (
     <div className="h-full">
-      <BoardContainer board={board} />
+      <BoardContainerWrapper board={board} /> {/* Changed */}
     </div>
   );
 }

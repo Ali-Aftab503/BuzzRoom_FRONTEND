@@ -315,11 +315,12 @@ export default function CardModalPage({ params }: CardModalPageProps) {
                       </div>
                     </div>
 
+                  <a
                     href={attachment.url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-blue-600 hover:text-blue-700"
-                    >
+                  >
                     <Download className="h-4 w-4" />
                   </a>
                   </div>
@@ -455,21 +456,21 @@ export default function CardModalPage({ params }: CardModalPageProps) {
               + Add Link
             </Button>
           </div>
-          {card.links && card.links.length > 0 && (
-            <div className="space-y-2">
-              {card.links.map((link: any) => (
-
-                key = { link.id }
-          href = { link.url }
-          target = "_blank"
-          rel = "noopener noreferrer"
-          className = "flex items-center gap-2 p-2 border rounded hover:bg-accent"
-                >
+  {card.links && card.links.length > 0 && (
+    <div className="space-y-2">
+      {card.links.map((link: any) => (
+        <a
+          key={link.id}
+          href={link.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 p-2 border rounded hover:bg-accent"
+        >
           <LinkIcon className="h-4 w-4 opacity-70" />
           <span className="text-sm">{link.title}</span>
         </a>
-          ))}
-        </div>
+      ))}
+    </div>
   )}
       </div>
       {/* Save Button */}

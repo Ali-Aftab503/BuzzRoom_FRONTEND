@@ -55,10 +55,8 @@ useEffect(() => {
 
   // Listen for card reorder events
   channel.bind("cards-reorder", (data: { cards: any[]; userId: string }) => {
-    // Ignore updates from the current user (optimistic updates already applied)
     if (data.userId === userId) return;
 
-    // Update the lists based on the new card positions
     const updatedLists = lists.map((list) => {
       const listCards = data.cards
         .filter((card) => card.listId === list.id)
@@ -81,10 +79,8 @@ useEffect(() => {
 
   // Listen for list reorder events
   channel.bind("lists-reorder", (data: { lists: any[]; userId: string }) => {
-    // Ignore updates from the current user
     if (data.userId === userId) return;
 
-    // Reorder lists based on the new order
     const reorderedLists = [...lists].sort((a, b) => {
       const aOrder = data.lists.find((l) => l.id === a.id)?.order ?? 0;
       const bOrder = data.lists.find((l) => l.id === b.id)?.order ?? 0;
@@ -104,8 +100,12 @@ useEffect(() => {
     router.refresh();
   });
 
-  // Listen for list deleted events
-  channel.bind("list-deleted", () => {
+  // Listen for list deleted events - UPDATED
+  channel.bind("list-deleted", (data: { listId: string; userId: string }) => {
+    console.log("List deleted via Pusher:", data.listId);
+    // Remove the list from state immediately
+    setLists((prevLists) => prevLists.filter((l) => l.id !== data.listId));
+    // Also refresh the page data
     router.refresh();
   });
 
@@ -115,8 +115,8 @@ useEffect(() => {
   });
 
   return () => {
-      channel.unbind_all();
-      channel.unsubscribe();
+    channel.unbind_all();
+    channel.unsubscribe();
   };
 }, [board.id, lists, userId, router]);
   const sensors = useSensors(

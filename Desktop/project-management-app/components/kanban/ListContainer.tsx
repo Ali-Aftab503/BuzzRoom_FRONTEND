@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react"; // Added useRef here
 import { List, Card } from "@prisma/client";
 import { CardItem } from "./CardItem";
 import { Plus, MoreHorizontal, Trash2, Copy, GripVertical } from "lucide-react";
@@ -33,6 +33,7 @@ export function ListContainer({ list }: ListContainerProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
+  const deletingRef = useRef(false); // Add this line
 
   const {
     attributes,
@@ -88,35 +89,55 @@ export function ListContainer({ list }: ListContainerProps) {
     }
   };
 
-  const handleDeleteList = async () => {
-    if (
-      !confirm(
-        `Are you sure you want to delete "${list.title}"? This will delete all cards in this list.`
-      )
-    ) {
+ const handleDeleteList = async () => {
+  // Check ref first to prevent duplicate calls
+  if (deletingRef.current) {
+    console.log("Delete already in progress, ignoring");
+    return;
+  }
+
+  if (
+    !confirm(
+      `Are you sure you want to delete "${list.title}"? This will delete all cards in this list.`
+    )
+  ) {
+    return;
+  }
+
+  if (isDeleting) return;
+
+  deletingRef.current = true;
+  setIsDeleting(true);
+
+  try {
+    const response = await fetch(`/api/lists/${list.id}`, {
+      method: "DELETE",
+    });
+
+    if (response.status === 404) {
+      console.log("List already deleted");
+      // Force a hard refresh instead of soft refresh
+      window.location.reload();
       return;
     }
 
-    setIsDeleting(true);
-
-    try {
-      const response = await fetch(`/api/lists/${list.id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error);
-      }
-
-      router.refresh();
-    } catch (error) {
-      console.error("Error deleting list:", error);
-      alert(`Failed to delete list`);
-    } finally {
-      setIsDeleting(false);
+    if (!response.ok) {
+      throw new Error("Failed to delete list");
     }
-  };
+
+    console.log("List deleted successfully");
+    // Force a hard refresh to ensure the list is removed
+    window.location.reload();
+  } catch (error: any) {
+    console.error("Error deleting list:", error);
+    if (!error.message?.includes("404")) {
+      alert("Failed to delete list");
+    } else {
+      window.location.reload();
+    }
+  }
+  // Don't reset deletingRef - component will unmount
+};
 
   const handleCopyList = async () => {
     setIsCopying(true);
@@ -134,7 +155,7 @@ export function ListContainer({ list }: ListContainerProps) {
       router.refresh();
     } catch (error) {
       console.error("Error copying list:", error);
-      alert(`Failed to copy list`);
+      alert("Failed to copy list");
     } finally {
       setIsCopying(false);
     }
