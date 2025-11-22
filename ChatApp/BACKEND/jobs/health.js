@@ -3,7 +3,7 @@ import cron from "node-cron";
 
 export function health() {
   cron.schedule(
-    "*/1 * * * *",
+    "*/10 * * * *",
     async () => {
       try {
         await axios.get("https://buzzroom-backend-cs9t.onrender.com/health");
