@@ -80,6 +80,7 @@ const messageRoutes = require('./routes/messages');
 const favoritesRoutes = require('./routes/favorites');
 const directMessagesRoutes = require('./routes/directMessages');
 const settingsRoutes = require('./routes/settings');
+const { health } = require('./jobs/health');
 
 // Use Routes
 app.use('/api/auth', authRoutes);
@@ -318,20 +319,43 @@ io.on('connection', (socket) => {
 });
 
 app.get('/', (req, res) => {
-  res.json({ 
-    message: 'Chat App API is running!',
-    timestamp: new Date(),
-    cors: 'enabled for all Vercel deployments'
-  });
+  res.send(`<!DOCTYPE html>
+  <html>
+    <head>
+      <title>Server Status</title>
+      <style>
+        body {
+          margin: 0;
+          height: 100vh;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          background: #111;
+          font-family: Arial, sans-serif;
+          color: #fff;
+        }
+
+        h1 {
+          font-size: 2.5rem;
+          animation: heartbeat 1.5s infinite;
+        }
+
+        @keyframes heartbeat {
+          0% { transform: scale(1); }
+          25% { transform: scale(1.1); }
+          40% { transform: scale(0.95); }
+          60% { transform: scale(1.08); }
+          100% { transform: scale(1); }
+        }
+      </style>
+    </head>
+    <body>
+      <h1>Chat App Server is up and running successfully ✌🏼✌🏼✌🏼</h1>
+    </body>
+  </html>`);
 });
 
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    timestamp: new Date(),
-    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
-  });
-});
+app.get("/health", (_, res) => res.json({ ok: true }));
 
 app.get('/debug/state', (req, res) => {
   res.json({ 
@@ -343,6 +367,9 @@ app.get('/debug/state', (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
+
+health()
+
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`✅ CORS enabled for all Vercel deployments`);
