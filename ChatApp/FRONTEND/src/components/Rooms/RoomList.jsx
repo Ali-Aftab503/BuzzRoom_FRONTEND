@@ -28,7 +28,7 @@ const RoomList = () => {
   useEffect(() => {
     fetchData();
     fetchSettings();
-    
+
     // Listen for real-time online count updates
     if (socket) {
       // Update from specific rooms
@@ -62,18 +62,18 @@ const RoomList = () => {
         roomAPI.getAllRooms(),
         favoritesAPI.getFavorites()
       ]);
-      
+
       const roomsData = roomsResponse.data.data.rooms;
       setRooms(roomsData);
       setFavoriteRooms(favoritesResponse.data.data.favoriteRooms);
-      
+
       // Initialize online counts (default to 0, will be updated by socket)
       const initialCounts = {};
       roomsData.forEach(room => {
         initialCounts[room._id] = room.onlineCount || 0;
       });
       setRoomOnlineCounts(initialCounts);
-      
+
       // Create a Set of favorite room IDs for quick lookup
       const favIds = new Set(
         favoritesResponse.data.data.favoriteRooms.map(room => room._id)
@@ -130,7 +130,7 @@ const RoomList = () => {
 
   const handleToggleFavorite = async (roomId, e) => {
     e.stopPropagation();
-    
+
     try {
       if (favoriteIds.has(roomId)) {
         await favoritesAPI.removeFavorite(roomId);
@@ -159,7 +159,7 @@ const RoomList = () => {
 
   const RoomCard = ({ room, isFavorite }) => {
     const onlineCount = roomOnlineCounts[room._id] || 0;
-    
+
     return (
       <div
         className="bg-[#18181b] border border-zinc-800 rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:border-indigo-500 hover:shadow-lg hover:shadow-indigo-500/20 hover:-translate-y-1 animate-fadeIn relative"
@@ -171,20 +171,19 @@ const RoomList = () => {
           className="absolute top-4 right-4 p-2 rounded-lg hover:bg-zinc-700 transition-colors z-10"
           title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
         >
-          <svg 
-            className={`w-6 h-6 transition-colors ${
-              isFavorite 
-                ? 'fill-yellow-500 text-yellow-500' 
+          <svg
+            className={`w-6 h-6 transition-colors ${isFavorite
+                ? 'fill-yellow-500 text-yellow-500'
                 : 'fill-none text-zinc-500 hover:text-yellow-500'
-            }`}
-            stroke="currentColor" 
+              }`}
+            stroke="currentColor"
             viewBox="0 0 24 24"
           >
-            <path 
-              strokeLinecap="round" 
-              strokeLinejoin="round" 
-              strokeWidth={2} 
-              d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" 
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
             />
           </svg>
         </button>
@@ -260,20 +259,14 @@ const RoomList = () => {
 
       {/* Sidebar */}
       <div
-        className={`fixed lg:static inset-y-0 left-0 z-40 w-64 bg-[#18181b] border-r border-zinc-800 flex flex-col transform transition-transform duration-300 ease-in-out ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-        }`}
+        className={`fixed lg:static inset-y-0 left-0 z-40 w-64 bg-[#18181b] border-r border-zinc-800 flex flex-col transform transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+          }`}
       >
         {/* Logo */}
         <div className="p-6 border-b border-zinc-800">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center logo-glow">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-              </div>
-              <h1 className="text-xl font-bold text-white">ChatApp</h1>
+              <img src="/logo.jpg" alt="Buzz Room" className="h-12 w-auto object-contain" />
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
@@ -366,16 +359,16 @@ const RoomList = () => {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 ml-16 lg:ml-0">
             <div>
               <h2 className="text-xl sm:text-2xl font-bold text-white">
-                {activeTab === 'all' ? 'Chat Rooms' : 
-                 activeTab === 'favorites' ? 'Favorites' :
-                 activeTab === 'direct' ? 'Direct Messages' :
-                 'Settings'}
+                {activeTab === 'all' ? 'Chat Rooms' :
+                  activeTab === 'favorites' ? 'Favorites' :
+                    activeTab === 'direct' ? 'Direct Messages' :
+                      'Settings'}
               </h2>
               <p className="text-zinc-400 mt-1 text-sm">
                 {activeTab === 'all' ? `${rooms.length} rooms available` :
-                 activeTab === 'favorites' ? `${favoriteRooms.length} favorite rooms` :
-                 activeTab === 'direct' ? 'Your direct conversations' :
-                 'Manage your account settings'}
+                  activeTab === 'favorites' ? `${favoriteRooms.length} favorite rooms` :
+                    activeTab === 'direct' ? 'Your direct conversations' :
+                      'Manage your account settings'}
               </p>
             </div>
             {activeTab === 'all' && (
@@ -457,27 +450,27 @@ const RoomList = () => {
                 <div className="space-y-3">
                   <label className="flex items-center justify-between p-4 bg-zinc-800 rounded-xl cursor-pointer hover:bg-zinc-700 transition">
                     <span className="text-white">Notifications</span>
-                    <input 
-                      type="checkbox" 
-                      className="w-5 h-5 text-indigo-600 rounded" 
+                    <input
+                      type="checkbox"
+                      className="w-5 h-5 text-indigo-600 rounded"
                       checked={settings.notifications}
                       onChange={(e) => handleSettingChange('notifications', e.target.checked)}
                     />
                   </label>
                   <label className="flex items-center justify-between p-4 bg-zinc-800 rounded-xl cursor-pointer hover:bg-zinc-700 transition">
                     <span className="text-white">Dark Mode</span>
-                    <input 
-                      type="checkbox" 
-                      className="w-5 h-5 text-indigo-600 rounded" 
+                    <input
+                      type="checkbox"
+                      className="w-5 h-5 text-indigo-600 rounded"
                       checked={settings.darkMode}
                       onChange={(e) => handleSettingChange('darkMode', e.target.checked)}
                     />
                   </label>
                   <label className="flex items-center justify-between p-4 bg-zinc-800 rounded-xl cursor-pointer hover:bg-zinc-700 transition">
                     <span className="text-white">Sound Effects</span>
-                    <input 
-                      type="checkbox" 
-                      className="w-5 h-5 text-indigo-600 rounded" 
+                    <input
+                      type="checkbox"
+                      className="w-5 h-5 text-indigo-600 rounded"
                       checked={settings.soundEffects}
                       onChange={(e) => handleSettingChange('soundEffects', e.target.checked)}
                     />
@@ -527,9 +520,9 @@ const RoomList = () => {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                   {rooms.map((room) => (
-                    <RoomCard 
-                      key={room._id} 
-                      room={room} 
+                    <RoomCard
+                      key={room._id}
+                      room={room}
                       isFavorite={favoriteIds.has(room._id)}
                     />
                   ))}

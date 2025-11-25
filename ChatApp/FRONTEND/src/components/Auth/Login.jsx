@@ -9,7 +9,7 @@ const Login = () => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  
+
   const navigate = useNavigate();
   const { login } = useAuth();
 
@@ -26,13 +26,13 @@ const Login = () => {
     setLoading(true);
 
     const result = await login(formData);
-    
+
     if (result.success) {
       navigate('/rooms');
     } else {
       setError(result.message);
     }
-    
+
     setLoading(false);
   };
 
@@ -41,15 +41,8 @@ const Login = () => {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8 animate-fadeIn">
-          <div className="inline-flex items-center space-x-3 mb-4">
-            <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center logo-glow">
-              <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-            </div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent">
-              ChatApp
-            </h1>
+          <div className="inline-flex items-center justify-center mb-4">
+            <img src="/logo.jpg" alt="Buzz Room" className="h-20 w-auto object-contain" />
           </div>
           <p className="text-zinc-400 text-lg">Welcome back! Login to continue</p>
         </div>

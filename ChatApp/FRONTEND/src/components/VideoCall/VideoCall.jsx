@@ -1,10 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
+import {
+  Mic,
+  MicOff,
+  Video,
+  VideoOff,
+  PhoneOff,
+  User
+} from 'lucide-react';
 
-const VideoCall = ({ 
-  callId, 
-  isInitiator, 
-  otherUserName, 
-  socket, 
+const VideoCall = ({
+  callId,
+  isInitiator,
+  otherUserName,
+  socket,
   onEndCall,
   callType = 'video',
   roomId
@@ -43,7 +51,7 @@ const VideoCall = ({
   useEffect(() => {
     console.log('🚀 Starting video call setup...');
     initCall();
-    
+
     return () => {
       console.log('🧹 Cleaning up call...');
       cleanup();
@@ -67,7 +75,7 @@ const VideoCall = ({
         if (signal.type === 'offer') {
           console.log('📝 Setting remote offer...');
           await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(signal));
-          
+
           // Add any pending candidates
           for (const candidate of pendingCandidates.current) {
             await peerConnectionRef.current.addIceCandidate(candidate);
@@ -77,28 +85,28 @@ const VideoCall = ({
           console.log('📤 Creating answer...');
           const answer = await peerConnectionRef.current.createAnswer();
           await peerConnectionRef.current.setLocalDescription(answer);
-          
-          socket.emit('webrtc-signal', { 
-            roomId, 
-            signal: { type: 'answer', sdp: answer.sdp } 
+
+          socket.emit('webrtc-signal', {
+            roomId,
+            signal: { type: 'answer', sdp: answer.sdp }
           });
           console.log('✅ Answer sent');
 
         } else if (signal.type === 'answer') {
           console.log('📝 Setting remote answer...');
           await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(signal));
-          
+
           // Add any pending candidates
           for (const candidate of pendingCandidates.current) {
             await peerConnectionRef.current.addIceCandidate(candidate);
           }
           pendingCandidates.current = [];
-          
+
           console.log('✅ Answer set successfully');
 
         } else if (signal.type === 'ice-candidate' && signal.candidate) {
           console.log('🧊 Received ICE candidate');
-          
+
           if (peerConnectionRef.current.remoteDescription) {
             await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(signal.candidate));
             console.log('✅ ICE candidate added');
@@ -122,7 +130,7 @@ const VideoCall = ({
   const initCall = async () => {
     try {
       console.log('🎥 Requesting media...');
-      
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: callType === 'video' ? { width: 1280, height: 720 } : false,
         audio: true
@@ -196,7 +204,7 @@ const VideoCall = ({
           offerToReceiveVideo: callType === 'video'
         });
         await pc.setLocalDescription(offer);
-        
+
         socket.emit('webrtc-signal', {
           roomId,
           signal: { type: 'offer', sdp: offer.sdp }
@@ -256,32 +264,30 @@ const VideoCall = ({
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col">
       {/* Header */}
-      <div className="bg-zinc-900/95 backdrop-blur-sm p-4 flex items-center justify-between">
+      <div className="bg-zinc-900/95 backdrop-blur-sm p-4 flex items-center justify-between border-b border-zinc-800">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full flex items-center justify-center">
-            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
+            <User className="w-6 h-6 text-white" />
           </div>
           <div>
             <h3 className="text-white font-semibold">{otherUserName}</h3>
             <div className="flex items-center space-x-2">
-              <div className={`w-2 h-2 rounded-full ${
-                callStatus === 'connected' ? 'bg-green-500 animate-pulse' :
-                callStatus === 'connecting' ? 'bg-yellow-500 animate-pulse' :
-                'bg-red-500'
-              }`}></div>
+              <div className={`w-2 h-2 rounded-full ${callStatus === 'connected' ? 'bg-green-500 animate-pulse' :
+                  callStatus === 'connecting' ? 'bg-yellow-500 animate-pulse' :
+                    'bg-red-500'
+                }`}></div>
               <p className="text-xs text-zinc-400 capitalize">{callStatus}</p>
             </div>
           </div>
         </div>
-        <div className="text-zinc-400 text-sm">
-          {callType === 'video' ? '📹 Video Call' : '🎤 Voice Call'}
+        <div className="text-zinc-400 text-sm flex items-center space-x-2 bg-zinc-800 px-3 py-1.5 rounded-full">
+          {callType === 'video' ? <Video className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+          <span>{callType === 'video' ? 'Video Call' : 'Voice Call'}</span>
         </div>
       </div>
 
       {/* Video Container */}
-      <div className="flex-1 relative bg-zinc-900">
+      <div className="flex-1 relative bg-zinc-900 overflow-hidden">
         {/* Remote Video (Full Screen) */}
         <video
           ref={remoteVideoRef}
@@ -291,23 +297,24 @@ const VideoCall = ({
         />
 
         {!remoteStream && (
-          <div className="absolute inset-0 flex items-center justify-center">
+          <div className="absolute inset-0 flex items-center justify-center bg-zinc-900">
             <div className="text-center">
-              <div className="w-24 h-24 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-24 h-24 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-6 relative">
+                <div className="absolute inset-0 border-4 border-indigo-500/30 rounded-full animate-ping"></div>
                 <span className="text-4xl text-white font-bold">
-                  {otherUserName[0].toUpperCase()}
+                  {otherUserName[0]?.toUpperCase()}
                 </span>
               </div>
               <p className="text-white text-xl font-semibold">{otherUserName}</p>
-              <p className="text-zinc-400 mt-2 capitalize">{callStatus}...</p>
-              {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
+              <p className="text-zinc-400 mt-2 capitalize animate-pulse">{callStatus}...</p>
+              {error && <p className="text-red-400 text-sm mt-2 bg-red-500/10 px-4 py-2 rounded-lg">{error}</p>}
             </div>
           </div>
         )}
 
         {/* Local Video (Picture in Picture) */}
         {callType === 'video' && (
-          <div className="absolute top-4 right-4 w-48 h-36 bg-zinc-800 rounded-xl overflow-hidden border-2 border-zinc-700 shadow-2xl">
+          <div className="absolute top-4 right-4 w-32 h-48 sm:w-48 sm:h-72 bg-zinc-800 rounded-2xl overflow-hidden border-2 border-zinc-700 shadow-2xl transition-all hover:scale-105">
             <video
               ref={localVideoRef}
               autoPlay
@@ -318,13 +325,10 @@ const VideoCall = ({
             {isVideoOff && (
               <div className="absolute inset-0 bg-zinc-800 flex items-center justify-center">
                 <div className="text-center">
-                  <div className="w-16 h-16 bg-zinc-700 rounded-full flex items-center justify-center mx-auto">
-                    <svg className="w-8 h-8 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
+                  <div className="w-12 h-12 bg-zinc-700 rounded-full flex items-center justify-center mx-auto">
+                    <VideoOff className="w-6 h-6 text-zinc-400" />
                   </div>
-                  <p className="text-xs text-zinc-400 mt-2">Camera Off</p>
+                  <p className="text-[10px] text-zinc-400 mt-2">Camera Off</p>
                 </div>
               </div>
             )}
@@ -333,50 +337,38 @@ const VideoCall = ({
       </div>
 
       {/* Controls */}
-      <div className="bg-zinc-900/95 backdrop-blur-sm p-6">
-        <div className="flex items-center justify-center space-x-4">
+      <div className="bg-zinc-900/95 backdrop-blur-sm p-6 pb-8">
+        <div className="flex items-center justify-center space-x-6">
           <button
             onClick={toggleMute}
-            className={`p-4 rounded-full transition-all ${
-              isMuted
-                ? 'bg-red-600 hover:bg-red-500'
-                : 'bg-zinc-700 hover:bg-zinc-600'
-            }`}
+            className={`p-4 rounded-full transition-all transform hover:scale-110 ${isMuted
+                ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30'
+                : 'bg-zinc-800 text-white hover:bg-zinc-700'
+              }`}
             title={isMuted ? 'Unmute' : 'Mute'}
           >
-            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              {isMuted ? (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clipRule="evenodd" />
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-              )}
-            </svg>
+            {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
           </button>
 
           {callType === 'video' && (
             <button
               onClick={toggleVideo}
-              className={`p-4 rounded-full transition-all ${
-                isVideoOff
-                  ? 'bg-red-600 hover:bg-red-500'
-                  : 'bg-zinc-700 hover:bg-zinc-600'
-              }`}
+              className={`p-4 rounded-full transition-all transform hover:scale-110 ${isVideoOff
+                  ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30'
+                  : 'bg-zinc-800 text-white hover:bg-zinc-700'
+                }`}
               title={isVideoOff ? 'Turn on camera' : 'Turn off camera'}
             >
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
+              {isVideoOff ? <VideoOff className="w-6 h-6" /> : <Video className="w-6 h-6" />}
             </button>
           )}
 
           <button
             onClick={endCall}
-            className="p-5 rounded-full bg-red-600 hover:bg-red-500 transition-all shadow-lg"
+            className="p-5 rounded-full bg-red-600 hover:bg-red-500 text-white transition-all transform hover:scale-110 shadow-lg shadow-red-600/30"
             title="End call"
           >
-            <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.257-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z" />
-            </svg>
+            <PhoneOff className="w-7 h-7" />
           </button>
         </div>
       </div>

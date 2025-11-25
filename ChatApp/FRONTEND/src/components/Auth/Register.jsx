@@ -11,7 +11,7 @@ const Register = () => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  
+
   const navigate = useNavigate();
   const { register } = useAuth();
 
@@ -43,13 +43,13 @@ const Register = () => {
       email: formData.email,
       password: formData.password,
     });
-    
+
     if (result.success) {
       navigate('/rooms');
     } else {
       setError(result.message);
     }
-    
+
     setLoading(false);
   };
 
@@ -58,15 +58,8 @@ const Register = () => {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8 animate-fadeIn">
-          <div className="inline-flex items-center space-x-3 mb-4">
-            <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center logo-glow">
-              <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-              </svg>
-            </div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent">
-              ChatApp
-            </h1>
+          <div className="inline-flex items-center justify-center mb-4">
+            <img src="/logo.jpg" alt="Buzz Room" className="h-20 w-auto object-contain" />
           </div>
           <p className="text-zinc-400 text-lg">Create your account to get started</p>
         </div>

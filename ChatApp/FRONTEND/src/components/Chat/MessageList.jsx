@@ -1,5 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import EmojiPicker from '../common/EmojiPicker';
+import {
+  Smile,
+  MoreVertical,
+  Edit2,
+  Trash2,
+  Check,
+  X
+} from 'lucide-react';
 
 const MessageList = ({ messages, currentUserId, typing, onReaction, onEdit, onDelete }) => {
   const messagesEndRef = useRef(null);
@@ -98,11 +106,11 @@ const MessageList = ({ messages, currentUserId, typing, onReaction, onEdit, onDe
   };
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-4 chat-scroll">
+    <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-4 chat-scroll pb-24 sm:pb-6">
       {Object.keys(messageGroups).map((date) => (
         <div key={date}>
           <div className="flex items-center justify-center my-6">
-            <div className="bg-zinc-800 px-4 py-2 rounded-full border border-zinc-700">
+            <div className="bg-zinc-800 px-4 py-2 rounded-full border border-zinc-700 shadow-sm">
               <span className="text-xs font-semibold text-zinc-400">{date}</span>
             </div>
           </div>
@@ -111,10 +119,7 @@ const MessageList = ({ messages, currentUserId, typing, onReaction, onEdit, onDe
             if (message.messageType === 'system') {
               return (
                 <div key={message._id} className="text-center my-4 animate-fadeIn">
-                  <div className="inline-flex items-center space-x-2 bg-zinc-800 px-4 py-2 rounded-full border border-zinc-700">
-                    <svg className="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                  <div className="inline-flex items-center space-x-2 bg-zinc-800/50 px-4 py-2 rounded-full border border-zinc-700/50">
                     <span className="text-sm text-zinc-400">{message.content}</span>
                   </div>
                 </div>
@@ -131,9 +136,8 @@ const MessageList = ({ messages, currentUserId, typing, onReaction, onEdit, onDe
                 style={{ animationDelay: `${index * 0.05}s` }}
               >
                 <div
-                  className={`flex items-end space-x-2 max-w-md sm:max-w-lg lg:max-w-xl ${
-                    isOwnMessage ? 'flex-row-reverse space-x-reverse' : ''
-                  }`}
+                  className={`flex items-end space-x-2 max-w-[85%] sm:max-w-lg lg:max-w-xl ${isOwnMessage ? 'flex-row-reverse space-x-reverse' : ''
+                    }`}
                 >
                   <img
                     src={message.sender.avatar}
@@ -142,17 +146,17 @@ const MessageList = ({ messages, currentUserId, typing, onReaction, onEdit, onDe
                     title={message.sender.username}
                   />
 
-                  <div className={`flex flex-col ${isOwnMessage ? 'items-end' : 'items-start'} relative`}>
+                  <div className={`flex flex-col ${isOwnMessage ? 'items-end' : 'items-start'} relative min-w-0`}>
                     {!isOwnMessage && (
                       <div className="flex items-center space-x-2 mb-1 px-2">
-                        <p className="text-xs font-semibold text-indigo-400">
+                        <p className="text-xs font-semibold text-indigo-400 truncate max-w-[150px]">
                           {message.sender.username}
                         </p>
                       </div>
                     )}
 
                     {editingMessage === message._id ? (
-                      <div className="w-full">
+                      <div className="w-full min-w-[200px]">
                         <input
                           type="text"
                           value={editContent}
@@ -167,67 +171,62 @@ const MessageList = ({ messages, currentUserId, typing, onReaction, onEdit, onDe
                         <div className="flex space-x-2 mt-2">
                           <button
                             onClick={() => saveEdit(message._id)}
-                            className="px-3 py-1 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-500"
+                            className="px-3 py-1 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-500 flex items-center space-x-1"
                           >
-                            Save
+                            <Check className="w-3 h-3" />
+                            <span>Save</span>
                           </button>
                           <button
                             onClick={cancelEdit}
-                            className="px-3 py-1 bg-zinc-700 text-zinc-300 text-xs rounded-lg hover:bg-zinc-600"
+                            className="px-3 py-1 bg-zinc-700 text-zinc-300 text-xs rounded-lg hover:bg-zinc-600 flex items-center space-x-1"
                           >
-                            Cancel
+                            <X className="w-3 h-3" />
+                            <span>Cancel</span>
                           </button>
                         </div>
                       </div>
                     ) : (
                       <>
                         <div
-                          className={`relative px-4 py-3 rounded-2xl shadow-lg transition-all duration-200 ${
-                            isOwnMessage
-                              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white'
-                              : 'bg-zinc-800 text-zinc-100 border border-zinc-700'
-                          } ${message.status === 'failed' ? 'opacity-50' : ''} ${message.deleted ? 'italic opacity-60' : ''}`}
+                          className={`relative px-4 py-3 rounded-2xl shadow-lg transition-all duration-200 ${isOwnMessage
+                              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-br-none'
+                              : 'bg-zinc-800 text-zinc-100 border border-zinc-700 rounded-bl-none'
+                            } ${message.status === 'failed' ? 'opacity-50' : ''} ${message.deleted ? 'italic opacity-60' : ''}`}
                         >
                           {/* Message menu button */}
                           {isOwnMessage && !message.deleted && (
                             <button
                               onClick={() => setShowMessageMenu(showMessageMenu === message._id ? null : message._id)}
-                              className="absolute -top-8 right-0 opacity-0 group-hover:opacity-100 bg-zinc-800 p-1 rounded-lg hover:bg-zinc-700 transition"
+                              className="absolute -top-8 right-0 opacity-0 group-hover:opacity-100 bg-zinc-800 p-1 rounded-lg hover:bg-zinc-700 transition border border-zinc-700 shadow-lg"
                             >
-                              <svg className="w-4 h-4 text-zinc-400" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                              </svg>
+                              <MoreVertical className="w-4 h-4 text-zinc-400" />
                             </button>
                           )}
 
                           {/* Message menu dropdown */}
                           {showMessageMenu === message._id && (
-                            <div className="absolute top-full right-0 mt-1 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl z-10 min-w-32">
+                            <div className="absolute top-full right-0 mt-1 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl z-10 min-w-32 overflow-hidden">
                               <button
                                 onClick={() => startEdit(message)}
-                                className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800 flex items-center space-x-2"
+                                className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800 flex items-center space-x-2 transition"
                               >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
+                                <Edit2 className="w-4 h-4" />
                                 <span>Edit</span>
                               </button>
                               <button
                                 onClick={() => handleDelete(message._id)}
-                                className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-zinc-800 flex items-center space-x-2"
+                                className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-zinc-800 flex items-center space-x-2 transition"
                               >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
+                                <Trash2 className="w-4 h-4" />
                                 <span>Delete</span>
                               </button>
                             </div>
                           )}
 
-                          <p className="break-words leading-relaxed">{message.content}</p>
+                          <p className="break-words leading-relaxed whitespace-pre-wrap text-[15px]">{message.content}</p>
 
                           {message.edited && !message.deleted && (
-                            <span className="text-xs opacity-70 ml-2">(edited)</span>
+                            <span className="text-[10px] opacity-70 ml-2 block text-right mt-1">(edited)</span>
                           )}
 
                           {/* URL Previews */}
@@ -239,23 +238,23 @@ const MessageList = ({ messages, currentUserId, typing, onReaction, onEdit, onDe
                                   href={preview.url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="block bg-zinc-900/50 rounded-lg p-3 hover:bg-zinc-900/70 transition border border-zinc-700"
+                                  className="block bg-black/20 rounded-lg p-3 hover:bg-black/30 transition border border-white/10"
                                 >
                                   {preview.image && (
                                     <img
                                       src={preview.image}
                                       alt={preview.title}
-                                      className="w-full h-40 object-cover rounded-lg mb-2"
+                                      className="w-full h-32 sm:h-40 object-cover rounded-lg mb-2"
                                     />
                                   )}
                                   {preview.title && (
-                                    <p className="font-semibold text-sm text-white mb-1">{preview.title}</p>
+                                    <p className="font-semibold text-sm mb-1 line-clamp-1">{preview.title}</p>
                                   )}
                                   {preview.description && (
-                                    <p className="text-xs text-zinc-400 line-clamp-2">{preview.description}</p>
+                                    <p className="text-xs opacity-70 line-clamp-2">{preview.description}</p>
                                   )}
                                   {preview.siteName && (
-                                    <p className="text-xs text-zinc-500 mt-1">{preview.siteName}</p>
+                                    <p className="text-[10px] opacity-50 mt-1 uppercase tracking-wider">{preview.siteName}</p>
                                   )}
                                 </a>
                               ))}
@@ -264,16 +263,15 @@ const MessageList = ({ messages, currentUserId, typing, onReaction, onEdit, onDe
 
                           {/* Reactions */}
                           {Object.keys(groupedReactions).length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-2">
+                            <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t border-white/10">
                               {Object.entries(groupedReactions).map(([emoji, reactions]) => (
                                 <button
                                   key={emoji}
                                   onClick={() => handleEmojiSelect(message._id, emoji)}
-                                  className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs transition ${
-                                    reactions.some(r => r.user._id === currentUserId)
-                                      ? 'bg-indigo-600 text-white'
-                                      : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
-                                  }`}
+                                  className={`flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] transition ${reactions.some(r => r.user._id === currentUserId)
+                                      ? 'bg-indigo-500/30 text-white border border-indigo-500/50'
+                                      : 'bg-black/20 text-zinc-300 hover:bg-black/30 border border-white/10'
+                                    }`}
                                   title={reactions.map(r => r.user.username).join(', ')}
                                 >
                                   <span>{emoji}</span>
@@ -287,16 +285,14 @@ const MessageList = ({ messages, currentUserId, typing, onReaction, onEdit, onDe
                           {!message.deleted && (
                             <button
                               onClick={() => setShowEmojiPicker(showEmojiPicker === message._id ? null : message._id)}
-                              className="absolute -bottom-6 right-2 opacity-0 group-hover:opacity-100 bg-zinc-800 p-1.5 rounded-lg hover:bg-zinc-700 transition"
+                              className="absolute -bottom-6 right-0 opacity-0 group-hover:opacity-100 bg-zinc-800 p-1.5 rounded-lg hover:bg-zinc-700 transition border border-zinc-700 shadow-lg"
                             >
-                              <svg className="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
+                              <Smile className="w-4 h-4 text-zinc-400" />
                             </button>
                           )}
 
                           {showEmojiPicker === message._id && (
-                            <div className="relative">
+                            <div className="relative z-20">
                               <EmojiPicker
                                 onEmojiSelect={(emoji) => handleEmojiSelect(message._id, emoji)}
                                 onClose={() => setShowEmojiPicker(null)}
@@ -306,9 +302,18 @@ const MessageList = ({ messages, currentUserId, typing, onReaction, onEdit, onDe
                         </div>
 
                         <div className="flex items-center space-x-2 px-2 mt-1">
-                          <p className="text-xs text-zinc-500">
+                          <p className="text-[10px] text-zinc-500">
                             {formatTime(message.createdAt)}
                           </p>
+                          {isOwnMessage && (
+                            <span className="text-[10px]">
+                              {message.status === 'sending' && <span className="text-zinc-500">Sending...</span>}
+                              {message.status === 'sent' && <span className="text-zinc-400">Sent</span>}
+                              {message.status === 'delivered' && <span className="text-zinc-400">Delivered</span>}
+                              {message.status === 'read' && <span className="text-indigo-400">Read</span>}
+                              {message.status === 'failed' && <span className="text-red-400">Failed</span>}
+                            </span>
+                          )}
                         </div>
                       </>
                     )}
@@ -321,15 +326,15 @@ const MessageList = ({ messages, currentUserId, typing, onReaction, onEdit, onDe
       ))}
 
       {typing && (
-        <div className="flex items-center space-x-3 mb-4 animate-fadeIn">
-          <div className="bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-3">
-            <div className="flex space-x-2">
-              <div className="typing-dot"></div>
-              <div className="typing-dot"></div>
-              <div className="typing-dot"></div>
+        <div className="flex items-center space-x-3 mb-4 animate-fadeIn px-2">
+          <div className="bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 rounded-bl-none">
+            <div className="flex space-x-1">
+              <div className="w-2 h-2 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
+              <div className="w-2 h-2 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+              <div className="w-2 h-2 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
             </div>
           </div>
-          <span className="text-sm text-zinc-500 italic">{typing}</span>
+          <span className="text-xs text-zinc-500 italic">{typing}</span>
         </div>
       )}
 
