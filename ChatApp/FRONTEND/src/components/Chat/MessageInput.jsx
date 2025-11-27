@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import EmojiPicker from '../common/EmojiPicker';
 import { Send, Smile, Paperclip, X } from 'lucide-react';
+import { compressImage } from '../../utils/imageUtils';
 
 const MessageInput = ({ onSendMessage, onTyping, onStopTyping, disabled }) => {
   const [message, setMessage] = useState('');
@@ -38,15 +39,23 @@ const MessageInput = ({ onSendMessage, onTyping, onStopTyping, disabled }) => {
     inputRef.current?.focus();
   };
 
-  const handleFileSelect = (e) => {
+  const handleFileSelect = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        // Send the base64 string as the message content with type 'image'
-        onSendMessage(reader.result, 'image');
-      };
-      reader.readAsDataURL(file);
+      // Check file size (limit to 5MB input)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File is too large. Please select an image under 5MB.');
+        e.target.value = '';
+        return;
+      }
+
+      try {
+        const compressedImage = await compressImage(file);
+        onSendMessage(compressedImage, 'image');
+      } catch (error) {
+        console.error('Image compression failed:', error);
+        alert('Failed to process image. Please try again.');
+      }
     }
     // Reset input so same file can be selected again if needed
     e.target.value = '';
