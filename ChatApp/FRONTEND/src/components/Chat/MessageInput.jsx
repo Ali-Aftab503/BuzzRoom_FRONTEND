@@ -51,7 +51,16 @@ const MessageInput = ({ onSendMessage, onTyping, onStopTyping, disabled }) => {
 
       try {
         const compressedImage = await compressImage(file);
-        onSendMessage(compressedImage, 'image');
+        try {
+          await onSendMessage(compressedImage, 'image');
+        } catch (sendError) {
+          console.error('Send message error:', sendError);
+          if (sendError.response && sendError.response.status === 500) {
+            alert('Image is too large for the server. Please try a smaller image.');
+          } else {
+            alert('Failed to send image. Please try again.');
+          }
+        }
       } catch (error) {
         console.error('Image compression failed:', error);
         alert('Failed to process image. Please try again.');

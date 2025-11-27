@@ -355,8 +355,8 @@ const RoomList = () => {
       {/* Main Content */}
       <div className="flex-1 w-full lg:w-auto overflow-y-auto">
         {/* Header */}
-        <div className="bg-[#18181b] border-b border-zinc-800 p-4 sm:p-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 ml-28 lg:ml-0">
+        <div className="bg-[#18181b] border-b border-zinc-800 p-4 sm:p-6 pl-24 lg:pl-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <h2 className="text-xl sm:text-2xl font-bold text-white">
                 {activeTab === 'all' ? 'Chat Rooms' :

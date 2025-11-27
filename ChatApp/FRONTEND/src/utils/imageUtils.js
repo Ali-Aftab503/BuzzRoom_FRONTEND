@@ -5,7 +5,7 @@
  * @param {number} quality - JPEG quality (0 to 1)
  * @returns {Promise<string>} - A promise that resolves to the Base64 string of the compressed image
  */
-export const compressImage = (file, maxWidth = 500, quality = 0.6) => {
+export const compressImage = (file, maxWidth = 400, quality = 0.6) => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
@@ -17,6 +17,7 @@ export const compressImage = (file, maxWidth = 500, quality = 0.6) => {
                 let width = img.width;
                 let height = img.height;
 
+                // Initial resize
                 if (width > maxWidth) {
                     height = Math.round((height * maxWidth) / width);
                     width = maxWidth;
@@ -28,9 +29,21 @@ export const compressImage = (file, maxWidth = 500, quality = 0.6) => {
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
 
-                // Compress to JPEG
-                const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
-                resolve(compressedBase64);
+                // Recursive compression function
+                const compress = (q) => {
+                    const base64 = canvas.toDataURL('image/jpeg', q);
+                    // Check if base64 string length is roughly < 70KB (approx 95000 chars)
+                    // Base64 is 4/3 larger than binary. 70KB * 1.33 = ~93KB chars.
+                    if (base64.length < 95000 || q < 0.2) {
+                        console.log(`Final image size: ${Math.round(base64.length / 1024)}KB at Q=${q}`);
+                        resolve(base64);
+                    } else {
+                        // Reduce quality and try again
+                        compress(q - 0.1);
+                    }
+                };
+
+                compress(quality);
             };
             img.onerror = (error) => reject(error);
         };
