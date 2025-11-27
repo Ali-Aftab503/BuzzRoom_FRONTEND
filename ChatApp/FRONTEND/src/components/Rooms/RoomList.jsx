@@ -173,8 +173,8 @@ const RoomList = () => {
         >
           <svg
             className={`w-6 h-6 transition-colors ${isFavorite
-                ? 'fill-yellow-500 text-yellow-500'
-                : 'fill-none text-zinc-500 hover:text-yellow-500'
+              ? 'fill-yellow-500 text-yellow-500'
+              : 'fill-none text-zinc-500 hover:text-yellow-500'
               }`}
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -266,7 +266,7 @@ const RoomList = () => {
         <div className="p-6 border-b border-zinc-800">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <img src="/logo.jpg" alt="Buzz Room" className="h-12 w-auto object-contain" />
+              <img src="/logo.png" alt="Buzz Room" className="h-12 w-auto object-contain" />
             </div>
             <button
               onClick={() => setSidebarOpen(false)}

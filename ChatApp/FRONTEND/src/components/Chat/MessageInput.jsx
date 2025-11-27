@@ -7,6 +7,7 @@ const MessageInput = ({ onSendMessage, onTyping, onStopTyping, disabled }) => {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const typingTimeoutRef = useRef(null);
   const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -37,6 +38,20 @@ const MessageInput = ({ onSendMessage, onTyping, onStopTyping, disabled }) => {
     inputRef.current?.focus();
   };
 
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        // Send the base64 string as the message content with type 'image'
+        onSendMessage(reader.result, 'image');
+      };
+      reader.readAsDataURL(file);
+    }
+    // Reset input so same file can be selected again if needed
+    e.target.value = '';
+  };
+
   // Auto-resize textarea
   useEffect(() => {
     if (inputRef.current) {
@@ -61,13 +76,21 @@ const MessageInput = ({ onSendMessage, onTyping, onStopTyping, disabled }) => {
         </div>
       )}
 
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileSelect}
+        accept="image/*"
+        className="hidden"
+      />
+
       <form onSubmit={handleSubmit} className="flex items-end space-x-2 bg-zinc-900 p-2 rounded-3xl border border-zinc-800 shadow-lg">
         <button
           type="button"
           onClick={() => setShowEmojiPicker(!showEmojiPicker)}
           className={`p-3 rounded-full transition-all duration-200 shrink-0 ${showEmojiPicker
-              ? 'bg-indigo-500/20 text-indigo-400'
-              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
+            ? 'bg-indigo-500/20 text-indigo-400'
+            : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
             }`}
           disabled={disabled}
         >
@@ -76,6 +99,7 @@ const MessageInput = ({ onSendMessage, onTyping, onStopTyping, disabled }) => {
 
         <button
           type="button"
+          onClick={() => fileInputRef.current?.click()}
           className="p-3 rounded-full text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-all duration-200 shrink-0 hidden sm:block"
           disabled={disabled}
         >
@@ -104,8 +128,8 @@ const MessageInput = ({ onSendMessage, onTyping, onStopTyping, disabled }) => {
           type="submit"
           disabled={!message.trim() || disabled}
           className={`p-3 rounded-full transition-all duration-200 shrink-0 ${message.trim() && !disabled
-              ? 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-500/20 transform hover:scale-105'
-              : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
+            ? 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-500/20 transform hover:scale-105'
+            : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
             }`}
         >
           <Send className="w-5 h-5" />

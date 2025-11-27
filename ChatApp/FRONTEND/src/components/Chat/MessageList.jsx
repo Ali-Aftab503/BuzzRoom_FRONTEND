@@ -129,25 +129,36 @@ const MessageList = ({ messages, currentUserId, typing, onReaction, onEdit, onDe
             const isOwnMessage = message.sender._id === currentUserId;
             const groupedReactions = message.reactions ? groupReactions(message.reactions) : {};
 
+            // Check if previous message exists and was from the same sender
+            const previousMessage = index > 0 ? messageGroups[date][index - 1] : null;
+            const isConsecutive = previousMessage &&
+              previousMessage.sender._id === message.sender._id &&
+              previousMessage.messageType !== 'system';
+
             return (
               <div
                 key={message._id}
-                className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-4 animate-fadeIn group`}
+                className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} ${isConsecutive ? 'mt-1' : 'mt-4'} animate-fadeIn group`}
                 style={{ animationDelay: `${index * 0.05}s` }}
               >
                 <div
                   className={`flex items-end space-x-2 max-w-[85%] sm:max-w-lg lg:max-w-xl ${isOwnMessage ? 'flex-row-reverse space-x-reverse' : ''
                     }`}
                 >
-                  <img
-                    src={message.sender.avatar}
-                    alt={message.sender.username}
-                    className="w-8 h-8 rounded-full flex-shrink-0 ring-2 ring-zinc-700"
-                    title={message.sender.username}
-                  />
+                  {/* Avatar - only show if not consecutive or if it's the first message of the group */}
+                  {!isConsecutive ? (
+                    <img
+                      src={message.sender.avatar}
+                      alt={message.sender.username}
+                      className="w-8 h-8 rounded-full flex-shrink-0 ring-2 ring-zinc-700 mb-1"
+                      title={message.sender.username}
+                    />
+                  ) : (
+                    <div className="w-8 flex-shrink-0" /> // Spacer for alignment
+                  )}
 
                   <div className={`flex flex-col ${isOwnMessage ? 'items-end' : 'items-start'} relative min-w-0`}>
-                    {!isOwnMessage && (
+                    {!isOwnMessage && !isConsecutive && (
                       <div className="flex items-center space-x-2 mb-1 px-2">
                         <p className="text-xs font-semibold text-indigo-400 truncate max-w-[150px]">
                           {message.sender.username}
@@ -188,9 +199,9 @@ const MessageList = ({ messages, currentUserId, typing, onReaction, onEdit, onDe
                     ) : (
                       <>
                         <div
-                          className={`relative px-4 py-3 rounded-2xl shadow-lg transition-all duration-200 ${isOwnMessage
-                              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-br-none'
-                              : 'bg-zinc-800 text-zinc-100 border border-zinc-700 rounded-bl-none'
+                          className={`relative px-5 py-4 rounded-2xl shadow-lg transition-all duration-200 ${isOwnMessage
+                            ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-br-none'
+                            : 'bg-zinc-800 text-zinc-100 border border-zinc-700 rounded-bl-none'
                             } ${message.status === 'failed' ? 'opacity-50' : ''} ${message.deleted ? 'italic opacity-60' : ''}`}
                         >
                           {/* Message menu button */}
@@ -223,7 +234,18 @@ const MessageList = ({ messages, currentUserId, typing, onReaction, onEdit, onDe
                             </div>
                           )}
 
-                          <p className="break-words leading-relaxed whitespace-pre-wrap text-[15px]">{message.content}</p>
+                          {message.messageType === 'image' ? (
+                            <div className="relative group/image">
+                              <img
+                                src={message.content}
+                                alt="Attachment"
+                                className="max-w-full rounded-lg max-h-64 sm:max-h-80 object-cover cursor-pointer hover:opacity-90 transition"
+                                onClick={() => window.open(message.content, '_blank')}
+                              />
+                            </div>
+                          ) : (
+                            <p className="break-words leading-relaxed whitespace-pre-wrap text-[15px]">{message.content}</p>
+                          )}
 
                           {message.edited && !message.deleted && (
                             <span className="text-[10px] opacity-70 ml-2 block text-right mt-1">(edited)</span>
@@ -269,8 +291,8 @@ const MessageList = ({ messages, currentUserId, typing, onReaction, onEdit, onDe
                                   key={emoji}
                                   onClick={() => handleEmojiSelect(message._id, emoji)}
                                   className={`flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] transition ${reactions.some(r => r.user._id === currentUserId)
-                                      ? 'bg-indigo-500/30 text-white border border-indigo-500/50'
-                                      : 'bg-black/20 text-zinc-300 hover:bg-black/30 border border-white/10'
+                                    ? 'bg-indigo-500/30 text-white border border-indigo-500/50'
+                                    : 'bg-black/20 text-zinc-300 hover:bg-black/30 border border-white/10'
                                     }`}
                                   title={reactions.map(r => r.user.username).join(', ')}
                                 >

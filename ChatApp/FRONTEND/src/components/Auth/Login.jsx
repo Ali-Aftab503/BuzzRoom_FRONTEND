@@ -42,7 +42,7 @@ const Login = () => {
         {/* Logo */}
         <div className="text-center mb-8 animate-fadeIn">
           <div className="inline-flex items-center justify-center mb-4">
-            <img src="/logo.jpg" alt="Buzz Room" className="h-20 w-auto object-contain" />
+            <img src="/logo.png" alt="Buzz Room" className="h-20 w-auto object-contain" />
           </div>
           <p className="text-zinc-400 text-lg">Welcome back! Login to continue</p>
         </div>
