@@ -61,6 +61,3 @@ Check out the live application here: [Live Demo Link](https://buzz-room-frontend
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## License
-
-This project is licensed under the MIT License.
